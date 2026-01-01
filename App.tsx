@@ -22,12 +22,21 @@ import {
   Crown, 
   AlertCircle, 
   ArrowRight,
-  CircleDollarSign,
   CheckCircle2,
   Zap,
   Users,
   MapPin,
-  Briefcase
+  Briefcase,
+  BookOpen,
+  Info,
+  TrendingUp,
+  ShieldCheck,
+  Gamepad2,
+  Lightbulb,
+  Coins,
+  PiggyBank,
+  Scale,
+  Percent
 } from 'lucide-react';
 
 const NIGERIAN_STATES = [
@@ -65,6 +74,75 @@ const PRESET_GOALS: Goal[] = [
   { id: 'japa', title: 'The Great Japa', target: 40000000, category: 'lifestyle', completed: false },
 ];
 
+const FINANCIAL_LESSONS = [
+  {
+    title: "The Choice: Owambe vs. Assets",
+    icon: <Coins className="text-amber-500" />,
+    text: "In the game, you'll see choices like 'Buying Aso-Ebi for your friend's wedding' vs 'Buying Lagos Gas Stocks'.",
+    lesson: "Wealth is built in the gap between what you earn and what you spend. Every Owambe is a withdrawal from your future.",
+    tip: "Tip: Pick 1 or 2 options wisely. Don't spend everything on vibes!"
+  },
+  {
+    title: "Mutual Funds vs. Stocks",
+    icon: <TrendingUp className="text-emerald-500" />,
+    text: "You can invest in single stocks like 'NairaTech' or diversified funds like 'Naija Balanced Fund'.",
+    lesson: "Stocks are high-risk/high-reward. Mutual funds are 'The Professional Hustle'—managed pools of money that lower your risk.",
+    tip: "Tip: Use Mutual Funds to build your base, then Stocks to hit targets."
+  },
+  {
+    title: "The Black Tax Reality",
+    icon: <Users className="text-indigo-500" />,
+    text: "Family will ask for money frequently. If you say 'Yes' to everyone, your balance hits ₦0 (Sapa wins).",
+    lesson: "Budget for family assistance. 'No' is a complete sentence that protects your financial health.",
+    tip: "Tip: High happiness is good, but ₦0 balance ends the game!"
+  }
+];
+
+const FINANCIAL_RUDIMENTS = [
+  {
+    title: "The 50/30/20 Budget Rule",
+    icon: <Scale className="text-indigo-600" />,
+    desc: "Allocate 50% for Needs (Rent, Food, Transport), 30% for Wants (Data, Outings), and 20% for Savings & Investments.",
+    context: "In Nigeria, 'Needs' often take more. Adjust as needed, but NEVER skip the 20% for your future self."
+  },
+  {
+    title: "Emergency Fund (Sapa Shield)",
+    icon: <PiggyBank className="text-emerald-600" />,
+    desc: "A stash of cash for the unexpected—hospital bills, car repairs, or the 1-week salary delay.",
+    context: "Aim for 3-6 months of basic expenses. This is not for investment; it's for survival."
+  },
+  {
+    title: "Good Debt vs. Bad Debt",
+    icon: <AlertCircle className="text-rose-600" />,
+    desc: "Good debt helps you earn (e.g., a loan for a laptop for work). Bad debt drains you (e.g., a loan for a party).",
+    context: "Avoid 'Loan Apps' with predatory interest rates. They are the fast lane to bankruptcy."
+  },
+  {
+    title: "Compound Interest Magic",
+    icon: <Percent className="text-amber-600" />,
+    desc: "Earning interest on your interest. Over time, even small amounts grow into massive wealth.",
+    context: "Starting Week 1 with ₦1,000 is better than starting Week 50 with ₦10,000. Time is your best friend."
+  }
+];
+
+const TUTORIAL_STEPS = [
+  {
+    title: "The Rule of ₦0",
+    icon: <Skull size={32} className="text-slate-900" />,
+    desc: "Your liquid balance is your life. If it hits zero, it's Game Over. Always keep a buffer for emergencies."
+  },
+  {
+    title: "5 Choices, 2 Picks",
+    icon: <Gamepad2 size={32} className="text-indigo-600" />,
+    desc: "Every week, 5 scenarios appear. You MUST select 1 or 2. Their impacts are added together. Strategy is key!"
+  },
+  {
+    title: "Salary Delay",
+    icon: <Banknote size={32} className="text-emerald-600" />,
+    desc: "You get paid every 4 weeks. Week 1 is Payday. Week 5 is Payday. Be ready for 'System Failure' (1-week delays)."
+  }
+];
+
 const App: React.FC = () => {
   const [status, setStatus] = useState<GameStatus>(GameStatus.START);
   const [stats, setStats] = useState<PlayerStats | null>(null);
@@ -100,7 +178,6 @@ const App: React.FC = () => {
   const handleFinishSetup = async () => {
     if (!setupData.name) return alert("Enter your name!");
     
-    // WEEK 1: START WITH SALARY PAID
     const baseline = setupData.challengeId === 'sapa-max' ? 10000 : setupData.challengeId === 'silver-spoon' ? 1000000 : 50000;
     const startBalance = baseline + setupData.salary;
 
@@ -139,6 +216,10 @@ const App: React.FC = () => {
     setStatus(GameStatus.GAMEOVER);
   };
 
+  const handleSetTrigger = (stockId: string, type: 'stopLoss' | 'takeProfit', value: number | undefined) => {
+    setPortfolio(prev => prev.map(p => p.stockId === stockId ? { ...p, [type]: value } : p));
+  };
+
   const confirmChoices = async () => {
     if (!stats || !currentScenario || selectedIndices.length === 0) return;
     
@@ -168,7 +249,6 @@ const App: React.FC = () => {
       }
     });
 
-    // SALARY CYCLE: Work 4 weeks, get paid Week 5, 9, 13...
     const isSalaryWeek = stats.currentWeek > 1 && (stats.currentWeek - 1) % 4 === 0;
     if (isSalaryWeek) {
       totalBalanceImpact += stats.salary;
@@ -221,8 +301,83 @@ const App: React.FC = () => {
       {status === GameStatus.START && (
         <div className="flex flex-col items-center justify-center min-h-[80vh] text-center space-y-10 animate-in fade-in zoom-in duration-700">
            <h1 className="text-8xl font-black text-slate-900 logo-font tracking-tighter"><span className="text-gradient">NairaWise</span></h1>
-           <p className="text-xl text-slate-500 font-bold max-w-md leading-relaxed">Secular Financial Sim. Salary starts Week 1. Survive the 4-week cycles. Zero balance = Game Over!</p>
-           <button onClick={() => setStatus(GameStatus.SETUP)} className="px-14 py-7 bg-slate-900 text-white rounded-[2.5rem] font-black text-2xl flex items-center gap-4 transition-all hover:scale-105 active:scale-95 shadow-xl">Start My Journey <ArrowRight /></button>
+           <p className="text-xl text-slate-500 font-bold max-w-md leading-relaxed">The ultimate Nigerian Financial survival game. Learn to invest, manage family pressure, and beat Sapa.</p>
+           <button onClick={() => setStatus(GameStatus.TUTORIAL)} className="px-14 py-7 bg-slate-900 text-white rounded-[2.5rem] font-black text-2xl flex items-center gap-4 transition-all hover:scale-105 active:scale-95 shadow-xl">Get Started <ArrowRight /></button>
+        </div>
+      )}
+
+      {status === GameStatus.TUTORIAL && (
+        <div className="max-w-4xl mx-auto bg-white p-10 md:p-16 rounded-[4rem] shadow-2xl border border-slate-100 animate-in slide-in-from-bottom-8 duration-500">
+          <header className="text-center mb-16">
+            <h2 className="text-5xl font-black mb-4 logo-font">The Mechanic</h2>
+            <p className="text-slate-500 text-xl font-medium">How to survive the Nigerian economy in this game.</p>
+          </header>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+            {TUTORIAL_STEPS.map((step, i) => (
+              <div key={i} className="p-8 rounded-[2.5rem] bg-slate-50 border border-slate-100 flex flex-col items-center text-center space-y-4 hover:bg-white hover:shadow-xl transition-all group">
+                <div className="p-5 bg-white rounded-3xl shadow-sm group-hover:scale-110 transition-transform">{step.icon}</div>
+                <h3 className="text-xl font-black uppercase tracking-tight">{step.title}</h3>
+                <p className="text-sm font-medium text-slate-500 leading-relaxed">{step.desc}</p>
+              </div>
+            ))}
+          </div>
+          <button onClick={() => setStatus(GameStatus.LESSONS)} className="w-full py-8 bg-slate-900 text-white rounded-[2.5rem] font-black text-2xl shadow-xl hover:scale-[1.02] active:scale-95 transition-all">Next: Naira Lessons</button>
+        </div>
+      )}
+
+      {status === GameStatus.LESSONS && (
+        <div className="max-w-4xl mx-auto bg-white p-10 md:p-16 rounded-[4rem] shadow-2xl border border-slate-100 animate-in slide-in-from-right-8 duration-500">
+          <header className="text-center mb-16">
+             <div className="inline-flex items-center gap-2 px-6 py-2 bg-emerald-50 text-emerald-600 rounded-full text-xs font-black uppercase tracking-widest border border-emerald-100 mb-6">
+               <BookOpen size={14} /> Financial Literacy 101
+             </div>
+             <h2 className="text-5xl font-black logo-font mb-4 text-slate-900">Naira Strategy</h2>
+             <p className="text-slate-500 text-xl font-medium">Lessons based on actual game scenarios.</p>
+          </header>
+          <div className="space-y-6 mb-16">
+            {FINANCIAL_LESSONS.map((lesson, i) => (
+              <div key={i} className="flex flex-col md:flex-row gap-8 p-8 bg-slate-50 rounded-[3rem] border border-slate-100 hover:border-emerald-200 transition-colors">
+                 <div className="flex-shrink-0 p-5 bg-white rounded-3xl h-fit shadow-sm self-center md:self-start">{lesson.icon}</div>
+                 <div className="space-y-3">
+                    <h4 className="text-2xl font-black text-slate-900">{lesson.title}</h4>
+                    <div className="p-4 bg-white/50 rounded-2xl border border-dashed border-slate-200 italic text-slate-500 text-sm">
+                       Example: {lesson.text}
+                    </div>
+                    <p className="text-slate-700 font-medium leading-relaxed">{lesson.lesson}</p>
+                    <p className="text-emerald-600 font-black text-xs uppercase tracking-widest pt-2 flex items-center gap-2">
+                       <Lightbulb size={14} /> {lesson.tip}
+                    </p>
+                 </div>
+              </div>
+            ))}
+          </div>
+          <button onClick={() => setStatus(GameStatus.RUDIMENTS)} className="w-full py-8 bg-indigo-600 text-white rounded-[2.5rem] font-black text-2xl shadow-xl hover:scale-[1.02] active:scale-95 transition-all">Next: Money Rudiments</button>
+        </div>
+      )}
+
+      {status === GameStatus.RUDIMENTS && (
+        <div className="max-w-4xl mx-auto bg-white p-10 md:p-16 rounded-[4rem] shadow-2xl border border-slate-100 animate-in slide-in-from-right-8 duration-500">
+          <header className="text-center mb-16">
+             <div className="inline-flex items-center gap-2 px-6 py-2 bg-indigo-50 text-indigo-600 rounded-full text-xs font-black uppercase tracking-widest border border-indigo-100 mb-6">
+               <ShieldCheck size={14} /> Wealth Fundamentals
+             </div>
+             <h2 className="text-5xl font-black logo-font mb-4 text-slate-900">Money Rudiments</h2>
+             <p className="text-slate-500 text-xl font-medium">Foundational principles to build a rock-solid financial future.</p>
+          </header>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-16">
+            {FINANCIAL_RUDIMENTS.map((rudiment, i) => (
+              <div key={i} className="p-8 bg-slate-50 rounded-[2.5rem] border border-slate-100 hover:border-indigo-200 hover:bg-white hover:shadow-xl transition-all group">
+                 <div className="mb-6 p-4 bg-white rounded-3xl w-fit shadow-sm group-hover:scale-110 transition-transform">{rudiment.icon}</div>
+                 <h4 className="text-xl font-black text-slate-900 mb-2">{rudiment.title}</h4>
+                 <p className="text-sm text-slate-600 font-medium mb-4 leading-relaxed">{rudiment.desc}</p>
+                 <div className="pt-4 border-t border-slate-200/50">
+                    <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-1">Local context</p>
+                    <p className="text-xs text-slate-500 font-bold leading-relaxed">{rudiment.context}</p>
+                 </div>
+              </div>
+            ))}
+          </div>
+          <button onClick={() => setStatus(GameStatus.SETUP)} className="w-full py-8 bg-emerald-600 text-white rounded-[2.5rem] font-black text-2xl shadow-xl hover:scale-[1.02] active:scale-95 transition-all">Enter Character Setup</button>
         </div>
       )}
 
@@ -325,7 +480,7 @@ const App: React.FC = () => {
                 setStats(newStats);
                 setPortfolio(prev => prev.map(p => p.stockId === id ? { ...p, shares: p.shares - 1 } : p));
               }
-            }} balance={stats.balance} onSetTrigger={() => {}} />
+            }} balance={stats.balance} onSetTrigger={handleSetTrigger} />
           ) : lastConsequences ? (
              <div className="bg-white p-12 rounded-[4.5rem] shadow-2xl text-center animate-in zoom-in duration-300">
                <h3 className="text-5xl font-black mb-12 logo-font">Week Review</h3>

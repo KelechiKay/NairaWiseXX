@@ -77,6 +77,9 @@ export interface GameLog {
 
 export enum GameStatus {
   START = 'START',
+  TUTORIAL = 'TUTORIAL',
+  LESSONS = 'LESSONS',
+  RUDIMENTS = 'RUDIMENTS',
   SETUP = 'SETUP',
   PLAYING = 'PLAYING',
   GAMEOVER = 'GAMEOVER',
