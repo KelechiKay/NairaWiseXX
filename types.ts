@@ -14,6 +14,8 @@ export interface PlayerStats {
   challenge: string;
   maritalStatus: 'single' | 'married';
   numberOfKids: number;
+  inventory: number; // For traders: Value of goods in shop
+  businessDebt: number; // Money owed by customers
 }
 
 export interface Goal {
@@ -30,7 +32,7 @@ export interface Stock {
   price: number;
   history: number[];
   sector: string;
-  assetType: 'stock' | 'mutual_fund';
+  assetType: 'stock' | 'mutual_fund' | 'inventory';
   description?: string;
 }
 
@@ -60,11 +62,24 @@ export interface Choice {
   investmentId?: string;
 }
 
+export interface SocialPost {
+  id: string;
+  handle: string;
+  name: string;
+  content: string;
+  likes: string;
+  retweets: string;
+  isVerified: boolean;
+  sentiment: 'bullish' | 'bearish' | 'funny' | 'advice';
+}
+
 export interface Scenario {
   title: string;
   description: string;
   imageTheme: string;
+  lesson: string;
   choices: Choice[];
+  socialFeed: SocialPost[];
   marketEvent?: MarketNews;
 }
 
@@ -73,15 +88,20 @@ export interface GameLog {
   title: string;
   decision: string;
   consequence: string;
+  amount: number;
+  balanceAfter: number;
 }
 
 export enum GameStatus {
   START = 'START',
+  HOW_TO_PLAY = 'HOW_TO_PLAY',
   TUTORIAL = 'TUTORIAL',
   LESSONS = 'LESSONS',
   RUDIMENTS = 'RUDIMENTS',
+  CHALLENGES_INFO = 'CHALLENGES_INFO',
   SETUP = 'SETUP',
   PLAYING = 'PLAYING',
   GAMEOVER = 'GAMEOVER',
+  VICTORY = 'VICTORY',
   LOADING = 'LOADING'
 }

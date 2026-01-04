@@ -8,40 +8,27 @@ export const getNextScenario = async (
 ): Promise<Scenario> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
-  let phase = "SURVIVAL (Sapa Era)";
-  if (stats.currentWeek > 50) phase = "GROWTH (Hustle Era)";
-  if (stats.currentWeek > 150) phase = "EXPANSION (Oga Era)";
-  if (stats.currentWeek > 300) phase = "LEGACY (Billionaire Era)";
+  const isInterval = [6, 12, 18, 24].includes(stats.currentWeek);
+  let difficulty = "NORMAL";
+  if (isInterval) difficulty = "HARD (The Sapa Surge)";
 
   const prompt = `
-    Create a personalized financial scenario for a Nigerian named ${stats.name} living in ${stats.city} State.
+    Create a highly personalized financial scenario for a Nigerian named ${stats.name}.
     
     PLAYER PROFILE:
-    - GENDER: ${stats.gender}
-    - JOB: ${stats.job}
-    - LOCATION: ${stats.city}
-    - MARITAL STATUS: ${stats.maritalStatus}
-    - CHILDREN: ${stats.numberOfKids}
-    - LIQUID BALANCE: ₦${stats.balance.toLocaleString()}
-    - MONTHLY SALARY: ₦${stats.salary.toLocaleString()}
-    - WEEK: ${stats.currentWeek} (${phase})
+    - JOB: ${stats.job} (If 'Market Trader', emphasize inventory, bulk buying, and market volatility).
+    - CITY: ${stats.city}
+    - MARITAL STATUS: ${stats.maritalStatus} (${stats.numberOfKids} kids)
+    - BALANCE: ₦${stats.balance.toLocaleString()}
+    - WEEK: ${stats.currentWeek} of 24
+    - DIFFICULTY: ${difficulty}
 
-    GAME MECHANICS:
-    1. ZERO BALANCE = INSTANT GAME OVER (SAPA WINS).
-    2. SALARY: Paid every 4 weeks (Weeks 5, 9, 13...). 
-    3. MULTI-CHOICE: Player picks 1 or 2 choices from 5 provided.
-    4. NO RELIGION: Strictly secular. No tithes, offerings, or religious events.
-
-    STRICT GUIDELINES:
-    1. PROVIDE EXACTLY 5 CHOICES.
-    2. CHOICE CONTENT:
-       - Choice 1: Basic Necessity relevant to ${stats.city} (e.g., BRT/Danfo if Lagos, Keke if Kano, etc.).
-       - Choice 2: Family/Social (Marital issues if married, children needs, black tax).
-       - Choice 3: Side Hustle or Emergency.
-       - Choice 4: Stock Investment (Use id: "lagos-gas", "nairatech", or "obudu-agri").
-       - Choice 5: Mutual Fund Investment (Use id: "naija-balanced", "arm-growth", or "fgn-bond-fund").
-    3. LANGUAGE: Use authentic Nigerian Pidgin mixed with savvy financial terms.
-    4. DIFFICULTY: Scale impacts based on their ₦${stats.salary.toLocaleString()} income.
+    REQUIREMENTS:
+    1. A MAIN SCENARIO: A realistic Nigerian dilemma (e.g. Fuel hike, family wedding, school fees, side-hustle).
+    2. 5 CHOICES: Each with balance/savings/debt/happiness impact. 
+    3. INVESTMENT: One choice MUST be an "Investment Deal" where they buy units of a stock/fund/inventory. Set 'investmentId' to one of: 'mtn-ng', 'zenith', 'dangote-cem', 'stanbic-fund'.
+    4. THE OGA LESSON: A pithy financial lesson in Pidgin.
+    5. NAIJA TRENDS: 4 witty social posts.
 
     RESPONSE FORMAT: JSON only.
   `;
@@ -56,17 +43,32 @@ export const getNextScenario = async (
         properties: {
           title: { type: Type.STRING },
           description: { type: Type.STRING },
-          imageTheme: { type: Type.STRING, description: "Theme for image, e.g. 'lagos bus', 'family lunch'" },
+          lesson: { type: Type.STRING },
+          imageTheme: { type: Type.STRING },
+          socialFeed: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                handle: { type: Type.STRING },
+                name: { type: Type.STRING },
+                content: { type: Type.STRING },
+                likes: { type: Type.STRING },
+                retweets: { type: Type.STRING },
+                isVerified: { type: Type.BOOLEAN },
+                sentiment: { type: Type.STRING, enum: ['bullish', 'bearish', 'funny', 'advice'] }
+              },
+              required: ["handle", "name", "content", "likes", "retweets", "isVerified", "sentiment"]
+            }
+          },
           choices: {
             type: Type.ARRAY,
-            minItems: 5,
-            maxItems: 5,
             items: {
               type: Type.OBJECT,
               properties: {
                 text: { type: Type.STRING },
                 consequence: { type: Type.STRING },
-                investmentId: { type: Type.STRING, description: "Only if choice is an investment" },
+                investmentId: { type: Type.STRING },
                 impact: {
                   type: Type.OBJECT,
                   properties: {
@@ -82,9 +84,9 @@ export const getNextScenario = async (
             }
           }
         },
-        required: ["title", "description", "choices", "imageTheme"]
+        required: ["title", "description", "lesson", "choices", "socialFeed", "imageTheme"]
       },
-      systemInstruction: "You are NairaWise, a witty Nigerian financial sim engine. You provide exactly 5 options. No religion. Be culturally grounded and savvy."
+      systemInstruction: "You are NairaWise, a witty Nigerian financial sim engine. You teach literacy through survival. Use authentic Pidgin."
     }
   });
 
@@ -93,11 +95,20 @@ export const getNextScenario = async (
 
 export const getEndGameAnalysis = async (stats: PlayerStats, h: GameLog[]) => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const prompt = `Explain why ${stats.name} (a ${stats.job} in ${stats.city}) is now broke (₦0 balance) at Week ${stats.currentWeek}. Analyze their path (Married: ${stats.maritalStatus === 'married'}, Kids: ${stats.numberOfKids}) and give a funny lecture in Pidgin. Secular only.`;
+  const prompt = `Post-mortem for ${stats.name} (${stats.job}) who went broke at Week ${stats.currentWeek}. Analyze their path to Sapa and give 3 educational points in Pidgin.`;
   const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: prompt,
-    config: { systemInstruction: "Wise Nigerian financial mentor. No religion." }
+    model: 'gemini-3-pro-preview',
+    contents: prompt
   });
-  return response.text || "Sapa catch you my pikin! Your balance is zero. Nigerian economy don win.";
+  return response.text || "Sapa catch you. Game Over.";
+};
+
+export const getVictoryAnalysis = async (stats: PlayerStats, netAssets: number) => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const prompt = `Victory report for ${stats.name} survived 24 weeks with ₦${netAssets.toLocaleString()} total net worth. Career: ${stats.job}. Grade them in Pidgin.`;
+  const response = await ai.models.generateContent({
+    model: 'gemini-3-pro-preview',
+    contents: prompt
+  });
+  return response.text || "Oga! You win.";
 };
