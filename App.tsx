@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { 
   PlayerStats, 
@@ -101,9 +100,13 @@ const App: React.FC = () => {
       setErrorMsg(null);
     } catch (e) { 
       console.error("Scenario Error", e);
-      setErrorMsg("NairaWise is having trouble connecting to the streets. Please try again.");
+      // Don't show aggressive error during prefetch unless immediate is true
+      if (immediate) {
+        setErrorMsg("The streets are busy. Could not load the scenario. Please check your internet.");
+      }
+    } finally {
+      isPrefetching.current = false;
     }
-    isPrefetching.current = false;
   }, []);
 
   useEffect(() => {
@@ -125,6 +128,7 @@ const App: React.FC = () => {
     if (!setup.name) return alert("Please enter your name!");
     setStatus(GameStatus.LOADING);
     setErrorMsg(null);
+    
     const finalJob = setup.job === "Custom Hustle..." ? setup.customJob : setup.job;
     const initial: PlayerStats = {
       ...setup, job: finalJob, balance: setup.salary / 2, savings: 0, debt: 0, happiness: 80, 
@@ -133,14 +137,18 @@ const App: React.FC = () => {
     };
     
     try {
+      // First Scenario fetch MUST succeed to move past loading
       const scene1 = await getNextScenario(initial, []);
       setStats(initial);
       setCurrentScenario(scene1);
       setStatus(GameStatus.PLAYING);
+      // Pre-fetch the next one in background
       prefetch({ ...initial, currentWeek: 2 }, []);
-    } catch (e) { 
-      console.error(e);
-      setErrorMsg("Could not start the game. Check your internet connection or API key.");
+    } catch (e: any) { 
+      console.error("Failed to start game:", e);
+      // Extract more specific error info if available
+      const specificError = e?.message || "Check your internet or API key.";
+      setErrorMsg(`Could not start the hustle: ${specificError}`);
       setStatus(GameStatus.SETUP); 
     }
   };
@@ -170,28 +178,36 @@ const App: React.FC = () => {
 
     selectedIndices.forEach(idx => {
       const choice = currentScenario.choices[idx];
-      balImpactTotal += choice.impact.balance;
-      savingsImpactTotal += choice.impact.savings;
-      debtImpactTotal += choice.impact.debt;
-      hapImpactTotal += choice.impact.happiness;
+      balImpactTotal += (choice.impact.balance || 0);
+      savingsImpactTotal += (choice.impact.savings || 0);
+      debtImpactTotal += (choice.impact.debt || 0);
+      hapImpactTotal += (choice.impact.happiness || 0);
       
       cons.push({ text: choice.consequence, decision: choice.text });
       
       if (choice.category) {
-        if (choice.category !== 'Saving') {
-          newSpending[choice.category] = (newSpending[choice.category] || 0) + Math.abs(choice.impact.balance);
+        const categoryKey = choice.category as string;
+        if (categoryKey !== 'Saving') {
+          newSpending[categoryKey] = (newSpending[categoryKey] || 0) + Math.abs(choice.impact.balance || 0);
         }
       }
       
       if (choice.investmentId) {
         const stock = stocks.find(s => s.id === choice.investmentId);
         if (stock) {
-          const investedAmount = Math.abs(choice.impact.balance);
+          const investedAmount = Math.abs(choice.impact.balance || 0);
           const unitsToBuy = Math.floor(investedAmount / stock.price);
           if (unitsToBuy > 0) {
             const existingIdx = newPortfolio.findIndex(p => p.stockId === stock.id);
-            if (existingIdx >= 0) newPortfolio[existingIdx].shares += unitsToBuy;
-            else newPortfolio.push({ stockId: stock.id, shares: unitsToBuy, averagePrice: stock.price });
+            if (existingIdx >= 0) {
+              const totalShares = newPortfolio[existingIdx].shares + unitsToBuy;
+              // Update weighted average price
+              const totalCost = (newPortfolio[existingIdx].shares * newPortfolio[existingIdx].averagePrice) + (unitsToBuy * stock.price);
+              newPortfolio[existingIdx].shares = totalShares;
+              newPortfolio[existingIdx].averagePrice = totalCost / totalShares;
+            } else {
+              newPortfolio.push({ stockId: stock.id, shares: unitsToBuy, averagePrice: stock.price });
+            }
           }
         }
       }
@@ -231,8 +247,30 @@ const App: React.FC = () => {
     
     setHistory(newHistory); 
     setSelectedIndices([]); 
-    prefetch({ ...newStats, currentWeek: nextWeek + 1 }, newHistory);
+    
+    // Clear next scenario if we have one, otherwise fetch
+    if (nextScenario) {
+      // Logic for next scenario happens on the "Next Week" button click
+    } else {
+      prefetch({ ...newStats, currentWeek: nextWeek + 1 }, newHistory);
+    }
+    
     localStorage.setItem(SAVE_KEY, JSON.stringify({ stats: newStats, history: newHistory, portfolio: newPortfolio, stocks }));
+  };
+
+  const proceedToNextWeek = () => {
+    setLastConsequences(null);
+    if (nextScenario) {
+      setCurrentScenario(nextScenario);
+      setNextScenario(null);
+      // Prefetch the one after that
+      if (stats) {
+        prefetch({ ...stats, currentWeek: stats.currentWeek + 1 }, history);
+      }
+    } else {
+      // If next is not ready yet, we wait (UI shows loading pulse)
+      setCurrentScenario(null);
+    }
   };
 
   return (
@@ -438,7 +476,7 @@ const App: React.FC = () => {
                        <h4 className="text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-4">Street Wisdom</h4>
                        <p className="text-3xl font-black text-emerald-950">{lastConsequences.lesson}</p>
                     </div>
-                    <button onClick={() => { setLastConsequences(null); if(nextScenario){ setCurrentScenario(nextScenario); setNextScenario(null); } }} className="w-full py-8 bg-slate-900 text-white rounded-[2.5rem] font-black text-2xl shadow-xl hover:bg-emerald-600 transition-all">Next Week</button>
+                    <button onClick={proceedToNextWeek} className="w-full py-8 bg-slate-900 text-white rounded-[2.5rem] font-black text-2xl shadow-xl hover:bg-emerald-600 transition-all">Next Week</button>
                   </div>
                 ) : (
                   <div className="space-y-8">
