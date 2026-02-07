@@ -41,7 +41,8 @@ import {
   Users,
   Plus,
   Minus,
-  RefreshCcw
+  RefreshCcw,
+  AlertCircle
 } from 'lucide-react';
 
 const JOBS = ["Digital Hustler", "Civil Servant", "Banker", "Market Trader", "Tech Bro", "Content Creator", "Artisan", "Custom Hustle..."];
@@ -70,6 +71,7 @@ const App: React.FC = () => {
   const [portfolio, setPortfolio] = useState<PortfolioItem[]>([]);
   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
   const [report, setReport] = useState<any>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const isPrefetching = useRef(false);
 
   const [setup, setSetup] = useState({ 
@@ -86,6 +88,24 @@ const App: React.FC = () => {
     return stats.balance + portfolioValue;
   }, [stats, portfolio, stocks]);
 
+  const prefetch = useCallback(async (s: PlayerStats, h: GameLog[], immediate = false) => {
+    if (isPrefetching.current) return;
+    isPrefetching.current = true;
+    try {
+      const scene = await getNextScenario(s, h);
+      if (immediate) {
+        setCurrentScenario(scene);
+      } else {
+        setNextScenario(scene);
+      }
+      setErrorMsg(null);
+    } catch (e) { 
+      console.error("Scenario Error", e);
+      setErrorMsg("NairaWise is having trouble connecting to the streets. Please try again.");
+    }
+    isPrefetching.current = false;
+  }, []);
+
   useEffect(() => {
     const saved = localStorage.getItem(SAVE_KEY);
     if (saved) {
@@ -99,40 +119,29 @@ const App: React.FC = () => {
         prefetch(data.stats, data.history || [], true);
       } catch (e) { console.error("Load failed", e); }
     }
-  }, []);
-
-  const prefetch = useCallback(async (s: PlayerStats, h: GameLog[], immediate = false) => {
-    if (isPrefetching.current) return;
-    isPrefetching.current = true;
-    try {
-      const scene = await getNextScenario(s, h);
-      if (immediate) {
-        setCurrentScenario(scene);
-      } else {
-        setNextScenario(scene);
-      }
-    } catch (e) { console.error("Scenario Error", e); }
-    isPrefetching.current = false;
-  }, []);
+  }, [prefetch]);
 
   const handleStart = async () => {
     if (!setup.name) return alert("Please enter your name!");
     setStatus(GameStatus.LOADING);
+    setErrorMsg(null);
     const finalJob = setup.job === "Custom Hustle..." ? setup.customJob : setup.job;
     const initial: PlayerStats = {
       ...setup, job: finalJob, balance: setup.salary / 2, savings: 0, debt: 0, happiness: 80, 
       currentWeek: 1, challenge: "The Grind Begins", inventory: [], businessDebt: 0, 
       lastPaidWeeks: {}, spendingByCategory: {}
     };
-    setStats(initial);
+    
     try {
       const scene1 = await getNextScenario(initial, []);
+      setStats(initial);
       setCurrentScenario(scene1);
       setStatus(GameStatus.PLAYING);
       prefetch({ ...initial, currentWeek: 2 }, []);
     } catch (e) { 
       console.error(e);
-      setStatus(GameStatus.START); 
+      setErrorMsg("Could not start the game. Check your internet connection or API key.");
+      setStatus(GameStatus.SETUP); 
     }
   };
 
@@ -228,6 +237,14 @@ const App: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto min-h-screen p-4 pb-24 relative selection:bg-emerald-100">
+      {errorMsg && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] bg-rose-600 text-white px-6 py-4 rounded-full shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-4">
+          <AlertCircle size={20} />
+          <p className="font-bold text-sm">{errorMsg}</p>
+          <button onClick={() => setErrorMsg(null)} className="ml-2 hover:opacity-50">✕</button>
+        </div>
+      )}
+
       {status === GameStatus.START && (
         <div className="flex flex-col items-center justify-center min-h-[90vh] text-center space-y-12 animate-in zoom-in">
            <div className="space-y-4">
@@ -371,9 +388,12 @@ const App: React.FC = () => {
       )}
 
       {status === GameStatus.LOADING && (
-        <div className="flex flex-col items-center justify-center min-h-[70vh] space-y-10">
+        <div className="flex flex-col items-center justify-center min-h-[70vh] space-y-10 text-center">
           <Loader2 className="w-24 h-24 text-emerald-600 animate-spin"/>
-          <p className="font-black text-slate-900 text-2xl tracking-[0.5em] uppercase text-center">Spawning in Nigeria...</p>
+          <div className="space-y-4">
+            <p className="font-black text-slate-900 text-2xl tracking-[0.5em] uppercase">Spawning in Nigeria...</p>
+            <p className="text-slate-400 font-medium">Navigating traffic and checking the dollar rate...</p>
+          </div>
         </div>
       )}
 
@@ -396,7 +416,14 @@ const App: React.FC = () => {
           
           <Dashboard stats={stats} netAssets={currentNetAssets} stocks={stocks} portfolio={portfolio} />
           
-          {activeTab === 'scenario' && (
+          {!currentScenario && status === GameStatus.PLAYING && (
+             <div className="flex flex-col items-center justify-center py-24 bg-white rounded-[4rem] border border-slate-100 shadow-sm animate-pulse">
+                <Loader2 size={48} className="text-emerald-500 animate-spin mb-4" />
+                <p className="font-black text-slate-400 uppercase tracking-widest text-xs">Finding your next move...</p>
+             </div>
+          )}
+
+          {activeTab === 'scenario' && currentScenario && (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pb-10">
               <div className="lg:col-span-8 space-y-8">
                 {lastConsequences ? (
@@ -417,7 +444,7 @@ const App: React.FC = () => {
                   <div className="space-y-8">
                     <div className="bg-white rounded-[4rem] overflow-hidden shadow-2xl border border-slate-100">
                       <div className="h-[400px] w-full relative">
-                        <img src={`https://picsum.photos/seed/naira-${currentScenario?.imageTheme}/1200/800`} className="w-full h-full object-cover"/>
+                        <img src={`https://picsum.photos/seed/naira-${currentScenario?.imageTheme}/1200/800`} className="w-full h-full object-cover" alt="Scenario context"/>
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex items-end p-12">
                           <h2 className="text-5xl font-black logo-font text-white tracking-tighter uppercase">{currentScenario?.title}</h2>
                         </div>

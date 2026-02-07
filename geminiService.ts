@@ -2,6 +2,11 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { PlayerStats, Scenario, GameLog } from "./types";
 
+const cleanJsonResponse = (text: string) => {
+  // Removes markdown code blocks like ```json ... ``` or ``` ... ```
+  return text.replace(/```json/g, "").replace(/```/g, "").trim();
+};
+
 export const getNextScenario = async (
   stats: PlayerStats,
   history: GameLog[]
@@ -35,83 +40,96 @@ export const getNextScenario = async (
     RESPONSE: JSON ONLY.
   `;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: prompt,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          title: { type: Type.STRING },
-          description: { type: Type.STRING },
-          lesson: { type: Type.STRING },
-          imageTheme: { type: Type.STRING },
-          socialFeed: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                handle: { type: Type.STRING },
-                name: { type: Type.STRING },
-                content: { type: Type.STRING },
-                likes: { type: Type.STRING },
-                retweets: { type: Type.STRING },
-                isVerified: { type: Type.BOOLEAN },
-                sentiment: { type: Type.STRING, enum: ['bullish', 'bearish', 'funny', 'advice'] }
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            title: { type: Type.STRING },
+            description: { type: Type.STRING },
+            lesson: { type: Type.STRING },
+            imageTheme: { type: Type.STRING },
+            socialFeed: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  handle: { type: Type.STRING },
+                  name: { type: Type.STRING },
+                  content: { type: Type.STRING },
+                  likes: { type: Type.STRING },
+                  retweets: { type: Type.STRING },
+                  isVerified: { type: Type.BOOLEAN },
+                  sentiment: { type: Type.STRING, enum: ['bullish', 'bearish', 'funny', 'advice'] }
+                }
+              }
+            },
+            choices: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  text: { type: Type.STRING },
+                  consequence: { type: Type.STRING },
+                  category: { type: Type.STRING, enum: ['Essential', 'NonEssential', 'Investment', 'Asset', 'Repairs', 'Family', 'Saving', 'Transport', 'BlackTax'] },
+                  investmentId: { type: Type.STRING },
+                  impact: {
+                    type: Type.OBJECT,
+                    properties: {
+                      balance: { type: Type.NUMBER },
+                      savings: { type: Type.NUMBER },
+                      debt: { type: Type.NUMBER },
+                      happiness: { type: Type.NUMBER },
+                    },
+                    required: ["balance", "savings", "debt", "happiness"]
+                  }
+                },
+                required: ["text", "consequence", "impact"]
               }
             }
           },
-          choices: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                text: { type: Type.STRING },
-                consequence: { type: Type.STRING },
-                category: { type: Type.STRING, enum: ['Essential', 'NonEssential', 'Investment', 'Asset', 'Repairs', 'Family', 'Saving', 'Transport', 'BlackTax'] },
-                investmentId: { type: Type.STRING },
-                impact: {
-                  type: Type.OBJECT,
-                  properties: {
-                    balance: { type: Type.NUMBER },
-                    savings: { type: Type.NUMBER },
-                    debt: { type: Type.NUMBER },
-                    happiness: { type: Type.NUMBER },
-                  },
-                  required: ["balance", "savings", "debt", "happiness"]
-                }
-              },
-              required: ["text", "consequence", "impact"]
-            }
-          }
+          required: ["title", "description", "lesson", "choices", "socialFeed", "imageTheme"]
         },
-        required: ["title", "description", "lesson", "choices", "socialFeed", "imageTheme"]
-      },
-      systemInstruction: "You are NairaWise, an AI mentor for the Nigerian hustle. Focus on wealth generation, asset acquisition, and strategic economic moves."
-    }
-  });
+        systemInstruction: "You are NairaWise, an AI mentor for the Nigerian hustle. Focus on wealth generation, asset acquisition, and strategic economic moves. Return valid JSON only."
+      }
+    });
 
-  return JSON.parse(response.text || "{}");
+    const cleanedText = cleanJsonResponse(response.text || "{}");
+    return JSON.parse(cleanedText);
+  } catch (error) {
+    console.error("Gemini Scenario Generation Error:", error);
+    throw error;
+  }
 };
 
 export const getEndGameAnalysis = async (stats: PlayerStats, h: GameLog[], reason: string) => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const prompt = `Post-mortem for ${stats.name} (${stats.job}) who finished at Week ${stats.currentWeek} in Nigeria. Reason: ${reason}. Provide Grade (A-F), Verdict, and 3 Street Wisdom points in ${stats.narrationLanguage}.`;
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview',
-    contents: prompt,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          grade: { type: Type.STRING },
-          verdict: { type: Type.STRING },
-          points: { type: Type.ARRAY, items: { type: Type.STRING } }
+  const prompt = `Post-mortem for ${stats.name} (${stats.job}) who finished at Week ${stats.currentWeek} in Nigeria. Reason: ${reason}. Provide Grade (A-F), Verdict, and 3 Street Wisdom points in ${stats.narrationLanguage}. Return JSON.`;
+  
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-pro-preview',
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            grade: { type: Type.STRING },
+            verdict: { type: Type.STRING },
+            points: { type: Type.ARRAY, items: { type: Type.STRING } }
+          }
         }
       }
-    }
-  });
-  return JSON.parse(response.text || "{}");
+    });
+    const cleanedText = cleanJsonResponse(response.text || "{}");
+    return JSON.parse(cleanedText);
+  } catch (error) {
+    console.error("Gemini End Game Error:", error);
+    return { grade: "N/A", verdict: "The economy was too complex for a final report.", points: ["Keep pushing regardless."] };
+  }
 };
