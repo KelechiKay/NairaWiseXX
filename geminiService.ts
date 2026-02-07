@@ -11,7 +11,7 @@ export const getNextScenario = async (
   const previousTitles = history.map(h => h.title).slice(-5).join(", ");
 
   const prompt = `
-    Generate a high-stakes Nigerian financial strategy scenario for ${stats.name}, who is a ${stats.job} in ${stats.city}.
+    Generate a high-stakes financial strategy scenario for ${stats.name}, who is a ${stats.job} in ${stats.city}, Nigeria.
     
     PLAYER CONTEXT:
     - Household: ${stats.maritalStatus === 'married' ? `Married with ${stats.numberOfKids} children` : 'Single'}.
@@ -22,14 +22,14 @@ export const getNextScenario = async (
 
     STRICT GENERATION RULES:
     1. NO REPEATS: Do not repeat scenario titles or plots: ${previousTitles}.
-    2. STRATEGIC FOCUS: Prioritize business expansion, investment opportunities (MTN, Zenith, Dangote), family legacy, or high-level career growth.
-    3. MINIMAL SURVIVAL: Do NOT force food or transport dilemmas unless they are part of a larger economic narrative. Focus on choice and strategy.
+    2. STRATEGIC FOCUS: Prioritize wealth generation, NGX investments (MTN, Zenith, Dangote Cement), managing 'Black Tax', family legacy, or high-level career growth.
+    3. MINIMAL SURVIVAL: Do NOT force petty food/transport dilemmas unless relevant to major inflation or fuel subsidy narratives. Focus on strategic assets.
     4. NO MONTHLY BULK: All costs/gains are for ONE week only. 
     5. CHOICE STRUCTURE (5-6 total): 
        - One major Investment (investmentId: 'mtn-ng', 'zenith', 'dangote-cem', or 'stanbic-fund').
        - Two strategic business/career growth moves.
        - One "Social Flex" vs "Wealth Building" dilemma.
-       - One risk-reward "Side Hustle" or "Networking" opportunity.
+       - One risk-reward networking or entrepreneurial opportunity.
     6. TONE: Intelligent, street-smart, and authentic. Use ${stats.narrationLanguage}.
 
     RESPONSE: JSON ONLY.
@@ -69,7 +69,7 @@ export const getNextScenario = async (
               properties: {
                 text: { type: Type.STRING },
                 consequence: { type: Type.STRING },
-                category: { type: Type.STRING, enum: ['Essential', 'NonEssential', 'Investment', 'Asset', 'Repairs', 'BlackTax', 'Family', 'Saving', 'Transport'] },
+                category: { type: Type.STRING, enum: ['Essential', 'NonEssential', 'Investment', 'Asset', 'Repairs', 'Family', 'Saving', 'Transport', 'BlackTax'] },
                 investmentId: { type: Type.STRING },
                 impact: {
                   type: Type.OBJECT,
@@ -88,7 +88,7 @@ export const getNextScenario = async (
         },
         required: ["title", "description", "lesson", "choices", "socialFeed", "imageTheme"]
       },
-      systemInstruction: "You are NairaWise, an AI mentor for the Nigerian hustle. Focus on wealth generation and strategic economic moves."
+      systemInstruction: "You are NairaWise, an AI mentor for the Nigerian hustle. Focus on wealth generation, asset acquisition, and strategic economic moves."
     }
   });
 
@@ -97,7 +97,7 @@ export const getNextScenario = async (
 
 export const getEndGameAnalysis = async (stats: PlayerStats, h: GameLog[], reason: string) => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const prompt = `Post-mortem for ${stats.name} (${stats.job}) who finished at Week ${stats.currentWeek}. Reason: ${reason}. Analyze their path. Provide Grade (A-F), Verdict, and 3 Street Wisdom points in ${stats.narrationLanguage}.`;
+  const prompt = `Post-mortem for ${stats.name} (${stats.job}) who finished at Week ${stats.currentWeek} in Nigeria. Reason: ${reason}. Provide Grade (A-F), Verdict, and 3 Street Wisdom points in ${stats.narrationLanguage}.`;
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
     contents: prompt,
