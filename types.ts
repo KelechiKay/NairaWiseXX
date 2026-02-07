@@ -24,7 +24,7 @@ export interface PlayerStats {
 export interface Choice {
   text: string;
   consequence: string;
-  category?: 'Essential' | 'NonEssential' | 'Investment' | 'Asset' | 'Repairs' | 'Family' | 'Saving' | 'Transport' | 'BlackTax';
+  category?: 'Essential' | 'NonEssential' | 'Investment' | 'Asset' | 'Repairs' | 'BlackTax' | 'Family' | 'Saving' | 'Transport';
   impact: {
     balance: number;
     savings: number;
@@ -34,6 +34,7 @@ export interface Choice {
   investmentId?: string;
   itemId?: string; 
   isNegotiable?: boolean;
+  negotiableOutcome?: string;
 }
 
 export interface SocialPost {

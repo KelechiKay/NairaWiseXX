@@ -40,7 +40,7 @@ const StockMarket: React.FC<StockMarketProps> = ({ stocks, portfolio, onBuy, onS
       <div className="lg:col-span-3 space-y-4 md:space-y-6">
         <div className="bg-white p-5 md:p-6 rounded-2xl md:rounded-[2.5rem] border border-slate-100 shadow-sm">
           <h3 className="text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-widest mb-4 md:mb-6 flex items-center gap-2">
-            <BarChart3 size={14} /> NGX Trading Floor
+            <BarChart3 size={14} /> Trading Floor
           </h3>
           <div className="flex lg:flex-col gap-2 overflow-x-auto pb-2 lg:pb-0 no-scrollbar">
             {[
@@ -62,14 +62,6 @@ const StockMarket: React.FC<StockMarketProps> = ({ stocks, portfolio, onBuy, onS
               </button>
             ))}
           </div>
-        </div>
-        <div className="bg-emerald-600 p-8 rounded-[2.5rem] text-white shadow-xl relative overflow-hidden group">
-           <TrendingUp className="absolute -bottom-4 -right-4 w-24 h-24 text-white/10 group-hover:scale-110 transition-transform" />
-           <p className="text-sm font-black uppercase tracking-wider mb-4">Investment Pro-Tip</p>
-           <p className="text-xs font-medium leading-relaxed opacity-90 relative z-10">
-             In Nigeria, blue-chip stocks like MTN pay dividends regularly. 
-             Mutual funds are your safe haven for rainy day cash!
-           </p>
         </div>
       </div>
 
@@ -94,16 +86,15 @@ const StockMarket: React.FC<StockMarketProps> = ({ stocks, portfolio, onBuy, onS
             const chartData = asset.history.map((price, index) => ({ week: index, price }));
 
             return (
-              <div key={asset.id} className="bg-white p-6 md:p-8 rounded-[2rem] md:rounded-[3rem] border border-slate-100 shadow-sm flex flex-col hover:border-emerald-100 hover:shadow-xl transition-all group">
+              <div key={asset.id} className="bg-white p-6 md:p-8 rounded-[2rem] md:rounded-[3rem] border border-slate-100 shadow-sm flex flex-col hover:border-indigo-100 hover:shadow-xl transition-all group">
                 <div className="flex justify-between items-start mb-4 md:mb-6">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1.5 md:mb-2">
                       <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-md ${
-                        asset.assetType === 'stock' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+                        asset.assetType === 'stock' ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700'
                       }`}>
                         {asset.assetType === 'stock' ? 'Equity' : 'Fund'}
                       </span>
-                      <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest truncate">{asset.sector}</span>
                     </div>
                     <h4 className="text-xl md:text-2xl font-black text-slate-900 leading-tight truncate">{asset.name}</h4>
                   </div>
@@ -116,11 +107,10 @@ const StockMarket: React.FC<StockMarketProps> = ({ stocks, portfolio, onBuy, onS
                 <div className="flex justify-between items-end mb-4 md:mb-6">
                   <div>
                     <p className="text-3xl md:text-4xl font-black text-slate-900 tracking-tighter">₦{asset.price.toLocaleString()}</p>
-                    <p className="text-[8px] md:text-[10px] text-slate-400 font-bold uppercase mt-1">Value</p>
                   </div>
                   {holding && (
                     <div className="text-right">
-                      <div className="bg-emerald-50 text-emerald-600 px-3 md:px-4 py-1.5 md:py-2 rounded-xl md:rounded-2xl inline-block">
+                      <div className="bg-indigo-50 text-indigo-600 px-3 md:px-4 py-1.5 md:py-2 rounded-xl md:rounded-2xl inline-block">
                         <p className="text-base md:text-lg font-black leading-none">{holding.shares}</p>
                         <p className="text-[7px] md:text-[8px] font-black uppercase tracking-widest mt-0.5">Units</p>
                       </div>

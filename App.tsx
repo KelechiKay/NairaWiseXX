@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { 
   PlayerStats, 
@@ -22,31 +23,32 @@ import {
 import { 
   Loader2, 
   ArrowRight, 
+  Zap, 
+  Users, 
+  MapPin, 
+  Briefcase, 
   TrendingUp, 
   Target,
   User,
   Calendar,
-  Briefcase,
-  MapPin,
+  Baby,
+  Trash2,
   Banknote,
   ScrollText,
   CheckCircle2,
+  Wallet,
+  ShieldAlert,
+  Frown,
   ShieldHalf,
   Coins,
-  Heart,
-  Globe,
+  ShieldCheck,
   Info,
-  Baby,
-  Users,
-  Plus,
-  Minus,
-  RefreshCcw,
-  AlertCircle
+  Heart
 } from 'lucide-react';
 
 const JOBS = ["Digital Hustler", "Civil Servant", "Banker", "Market Trader", "Tech Bro", "Content Creator", "Artisan", "Custom Hustle..."];
 const NIGERIAN_STATES = [
-  "Lagos", "Abuja (FCT)", "Rivers", "Kano", "Oyo", "Enugu", "Anambra", "Delta", "Ogun", "Kaduna", "Edo", "Akwa Ibom"
+  "Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa", "Benue", "Borno", "Cross River", "Delta", "Ebonyi", "Edo", "Ekiti", "Enugu", "FCT - Abuja", "Gombe", "Imo", "Jigawa", "Kaduna", "Kano", "Katsina", "Kebbi", "Kogi", "Kwara", "Lagos", "Nasarawa", "Niger", "Ogun", "Ondo", "Osun", "Oyo", "Plateau", "Rivers", "Sokoto", "Taraba", "Yobe", "Zamfara"
 ];
 const INITIAL_STOCKS: Stock[] = [
   { id: 'mtn-ng', name: 'MTN Nigeria', price: 280, history: [270, 275, 280], sector: 'Telecom', assetType: 'stock' },
@@ -56,7 +58,7 @@ const INITIAL_STOCKS: Stock[] = [
 ];
 
 const COLORS = ['#10b981', '#6366f1', '#f59e0b', '#ef4444', '#ec4899', '#8b5cf6', '#06b6d4'];
-const SAVE_KEY = 'nairawise_v30_stable';
+const SAVE_KEY = 'nairawise_v28_stable';
 
 const App: React.FC = () => {
   const [status, setStatus] = useState<GameStatus>(GameStatus.START);
@@ -70,12 +72,11 @@ const App: React.FC = () => {
   const [portfolio, setPortfolio] = useState<PortfolioItem[]>([]);
   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
   const [report, setReport] = useState<any>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const isPrefetching = useRef(false);
 
   const [setup, setSetup] = useState({ 
     name: '', gender: 'male' as any, ageBracket: "26-35", job: JOBS[0], customJob: '', salary: 150000, 
-    city: "Lagos", maritalStatus: 'single' as any, numberOfKids: 0, narrationLanguage: 'English' as any
+    city: "Lagos", maritalStatus: 'single' as any, numberOfKids: 0, narrationLanguage: 'Pidgin' as any
   });
 
   const currentNetAssets = useMemo(() => {
@@ -86,28 +87,6 @@ const App: React.FC = () => {
     }, 0);
     return stats.balance + portfolioValue;
   }, [stats, portfolio, stocks]);
-
-  const prefetch = useCallback(async (s: PlayerStats, h: GameLog[], immediate = false) => {
-    if (isPrefetching.current) return;
-    isPrefetching.current = true;
-    try {
-      const scene = await getNextScenario(s, h);
-      if (immediate) {
-        setCurrentScenario(scene);
-      } else {
-        setNextScenario(scene);
-      }
-      setErrorMsg(null);
-    } catch (e) { 
-      console.error("Scenario Error", e);
-      // Don't show aggressive error during prefetch unless immediate is true
-      if (immediate) {
-        setErrorMsg("The streets are busy. Could not load the scenario. Please check your internet.");
-      }
-    } finally {
-      isPrefetching.current = false;
-    }
-  }, []);
 
   useEffect(() => {
     const saved = localStorage.getItem(SAVE_KEY);
@@ -122,41 +101,40 @@ const App: React.FC = () => {
         prefetch(data.stats, data.history || [], true);
       } catch (e) { console.error("Load failed", e); }
     }
-  }, [prefetch]);
+  }, []);
+
+  const prefetch = useCallback(async (s: PlayerStats, h: GameLog[], immediate = false) => {
+    if (isPrefetching.current) return;
+    isPrefetching.current = true;
+    try {
+      const scene = await getNextScenario(s, h);
+      if (immediate) {
+        setCurrentScenario(scene);
+      } else {
+        setNextScenario(scene);
+      }
+    } catch (e) { console.error("Scenario Error", e); }
+    isPrefetching.current = false;
+  }, []);
 
   const handleStart = async () => {
     if (!setup.name) return alert("Please enter your name!");
     setStatus(GameStatus.LOADING);
-    setErrorMsg(null);
-    
     const finalJob = setup.job === "Custom Hustle..." ? setup.customJob : setup.job;
     const initial: PlayerStats = {
       ...setup, job: finalJob, balance: setup.salary / 2, savings: 0, debt: 0, happiness: 80, 
       currentWeek: 1, challenge: "The Grind Begins", inventory: [], businessDebt: 0, 
       lastPaidWeeks: {}, spendingByCategory: {}
     };
-    
+    setStats(initial);
     try {
-      // First Scenario fetch MUST succeed to move past loading
       const scene1 = await getNextScenario(initial, []);
-      setStats(initial);
       setCurrentScenario(scene1);
       setStatus(GameStatus.PLAYING);
-      // Pre-fetch the next one in background
       prefetch({ ...initial, currentWeek: 2 }, []);
-    } catch (e: any) { 
-      console.error("Failed to start game:", e);
-      // Extract more specific error info if available
-      const specificError = e?.message || "Check your internet or API key.";
-      setErrorMsg(`Could not start the hustle: ${specificError}`);
-      setStatus(GameStatus.SETUP); 
-    }
-  };
-
-  const handleRestart = () => {
-    if (window.confirm("Are you sure you want to restart the game? Your current progress will be lost.")) {
-      localStorage.removeItem(SAVE_KEY);
-      window.location.reload();
+    } catch (e) { 
+      console.error(e);
+      setStatus(GameStatus.START); 
     }
   };
 
@@ -164,12 +142,8 @@ const App: React.FC = () => {
     if (!stats || !currentScenario || selectedIndices.length === 0) return;
     const isPayday = stats.currentWeek % 4 === 0;
     const salaryAmt = isPayday ? stats.salary : 0;
-    
-    let balImpactTotal = salaryAmt;
-    let savingsImpactTotal = 0;
-    let debtImpactTotal = 0;
-    let hapImpactTotal = 0;
-    
+    let balImpact = salaryAmt;
+    let hapImpact = 0;
     let newSpending = { ...stats.spendingByCategory };
     let newPortfolio = [...portfolio];
     let cons: {text: string, decision: string}[] = [];
@@ -178,36 +152,22 @@ const App: React.FC = () => {
 
     selectedIndices.forEach(idx => {
       const choice = currentScenario.choices[idx];
-      balImpactTotal += (choice.impact.balance || 0);
-      savingsImpactTotal += (choice.impact.savings || 0);
-      debtImpactTotal += (choice.impact.debt || 0);
-      hapImpactTotal += (choice.impact.happiness || 0);
-      
+      let cost = choice.impact.balance;
+      balImpact += cost;
+      hapImpact += choice.impact.happiness;
       cons.push({ text: choice.consequence, decision: choice.text });
-      
       if (choice.category) {
-        const categoryKey = choice.category as string;
-        if (categoryKey !== 'Saving') {
-          newSpending[categoryKey] = (newSpending[categoryKey] || 0) + Math.abs(choice.impact.balance || 0);
-        }
+        if (choice.category !== 'Saving') newSpending[choice.category] = (newSpending[choice.category] || 0) + Math.abs(cost);
       }
-      
       if (choice.investmentId) {
         const stock = stocks.find(s => s.id === choice.investmentId);
         if (stock) {
-          const investedAmount = Math.abs(choice.impact.balance || 0);
+          const investedAmount = Math.abs(cost);
           const unitsToBuy = Math.floor(investedAmount / stock.price);
           if (unitsToBuy > 0) {
             const existingIdx = newPortfolio.findIndex(p => p.stockId === stock.id);
-            if (existingIdx >= 0) {
-              const totalShares = newPortfolio[existingIdx].shares + unitsToBuy;
-              // Update weighted average price
-              const totalCost = (newPortfolio[existingIdx].shares * newPortfolio[existingIdx].averagePrice) + (unitsToBuy * stock.price);
-              newPortfolio[existingIdx].shares = totalShares;
-              newPortfolio[existingIdx].averagePrice = totalCost / totalShares;
-            } else {
-              newPortfolio.push({ stockId: stock.id, shares: unitsToBuy, averagePrice: stock.price });
-            }
+            if (existingIdx >= 0) newPortfolio[existingIdx].shares += unitsToBuy;
+            else newPortfolio.push({ stockId: stock.id, shares: unitsToBuy, averagePrice: stock.price });
           }
         }
       }
@@ -215,85 +175,40 @@ const App: React.FC = () => {
 
     const nextWeek = stats.currentWeek + 1;
     const newStats: PlayerStats = {
-      ...stats, 
-      balance: stats.balance + balImpactTotal,
-      savings: stats.savings + savingsImpactTotal,
-      debt: stats.debt + debtImpactTotal,
-      happiness: Math.min(100, Math.max(0, stats.happiness + hapImpactTotal)),
-      currentWeek: nextWeek, 
-      spendingByCategory: newSpending
+      ...stats, balance: stats.balance + balImpact,
+      happiness: Math.min(100, Math.max(0, stats.happiness + hapImpact)),
+      currentWeek: nextWeek, spendingByCategory: newSpending
     };
 
     if (newStats.balance < 0 || nextWeek > 24) {
       setStatus(GameStatus.LOADING);
-      const res = await getEndGameAnalysis(newStats, history, newStats.balance < 0 ? "Sapa Caught You" : "Completed Life Cycle");
+      const res = await getEndGameAnalysis(newStats, history, newStats.balance < 0 ? "Broke" : "Completed");
       setReport(res);
       setStatus(newStats.balance < 0 ? GameStatus.GAMEOVER : GameStatus.VICTORY);
       return;
     }
 
-    setStats(newStats); 
-    setPortfolio(newPortfolio);
+    setStats(newStats); setPortfolio(newPortfolio);
     setLastConsequences({ items: cons, lesson: currentScenario.lesson });
-    
     const newHistory = [...history, { 
-      week: stats.currentWeek, 
-      title: currentScenario.title, 
+      week: stats.currentWeek, title: currentScenario.title, 
       decision: selectedIndices.map(i => currentScenario.choices[i].text).join(" & "), 
-      consequence: cons.map(c => c.text).join(" "), 
-      amount: balImpactTotal, 
-      balanceAfter: newStats.balance 
+      consequence: cons.map(c => c.text).join(" "), amount: balImpact, balanceAfter: newStats.balance 
     }];
-    
-    setHistory(newHistory); 
-    setSelectedIndices([]); 
-    
-    // Clear next scenario if we have one, otherwise fetch
-    if (nextScenario) {
-      // Logic for next scenario happens on the "Next Week" button click
-    } else {
-      prefetch({ ...newStats, currentWeek: nextWeek + 1 }, newHistory);
-    }
-    
+    setHistory(newHistory); setSelectedIndices([]); 
+    prefetch({ ...newStats, currentWeek: nextWeek + 1 }, newHistory);
     localStorage.setItem(SAVE_KEY, JSON.stringify({ stats: newStats, history: newHistory, portfolio: newPortfolio, stocks }));
-  };
-
-  const proceedToNextWeek = () => {
-    setLastConsequences(null);
-    if (nextScenario) {
-      setCurrentScenario(nextScenario);
-      setNextScenario(null);
-      // Prefetch the one after that
-      if (stats) {
-        prefetch({ ...stats, currentWeek: stats.currentWeek + 1 }, history);
-      }
-    } else {
-      // If next is not ready yet, we wait (UI shows loading pulse)
-      setCurrentScenario(null);
-    }
   };
 
   return (
     <div className="max-w-6xl mx-auto min-h-screen p-4 pb-24 relative selection:bg-emerald-100">
-      {errorMsg && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] bg-rose-600 text-white px-6 py-4 rounded-full shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-4">
-          <AlertCircle size={20} />
-          <p className="font-bold text-sm">{errorMsg}</p>
-          <button onClick={() => setErrorMsg(null)} className="ml-2 hover:opacity-50">✕</button>
-        </div>
-      )}
-
       {status === GameStatus.START && (
         <div className="flex flex-col items-center justify-center min-h-[90vh] text-center space-y-12 animate-in zoom-in">
            <div className="space-y-4">
-             <h1 className="text-9xl font-black text-slate-900 logo-font tracking-tighter leading-none">
-                <span className="text-gradient">Naira<br/>Wise</span>
-             </h1>
+             <h1 className="text-9xl font-black text-slate-900 logo-font tracking-tighter leading-none"><span className="text-gradient">Naira<br/>Wise</span></h1>
              <p className="text-2xl font-medium text-slate-400 max-w-lg mx-auto italic">Master your money in the heart of Nigeria.</p>
            </div>
-           <div className="flex flex-col gap-4 items-center">
-             <button onClick={() => setStatus(GameStatus.HOW_TO_PLAY)} className="px-12 py-8 bg-slate-900 text-white rounded-full font-black text-xl flex items-center justify-center gap-4 transition-all hover:scale-105 shadow-2xl active:scale-95">Enter Streets <ArrowRight/></button>
-           </div>
+           <button onClick={() => setStatus(GameStatus.HOW_TO_PLAY)} className="px-12 py-8 bg-slate-900 text-white rounded-full font-black text-xl flex items-center justify-center gap-4 transition-all hover:scale-105 shadow-2xl active:scale-95">Enter Streets <ArrowRight/></button>
         </div>
       )}
 
@@ -301,17 +216,14 @@ const App: React.FC = () => {
         <div className="max-w-5xl mx-auto space-y-16 py-10 animate-in slide-in-from-bottom-12 pb-32">
           <header className="text-center space-y-6">
             <h2 className="text-6xl md:text-7xl font-black logo-font text-slate-900 tracking-tighter uppercase">The Hustle Handbook</h2>
-            <p className="text-xl text-slate-500 font-medium">Survive Sapa and build wealth in 24 weeks.</p>
           </header>
-          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <section className="space-y-8">
-              <h3 className="text-3xl font-black text-slate-900 flex items-center gap-4 border-l-8 border-emerald-500 pl-6">Core Mechanics</h3>
+              <h3 className="text-3xl font-black text-slate-900 flex items-center gap-4 border-l-8 border-emerald-500 pl-6">Street Survival</h3>
               <div className="space-y-4">
                 {[
-                  { icon: Calendar, title: "24 Weeks of Grind", text: "Life moves fast. Payday is every 4th week. Plan for 'Black Tax' and expenses." },
-                  { icon: TrendingUp, title: "NGX Investing", text: "Buy stocks like MTN and Zenith. Use stop-loss to protect your Naira from market volatility." },
-                  { icon: Heart, title: "Happiness Index", text: "If happiness hits 0, the grind stops. Balance your hustle with joy and family." }
+                  { icon: ShieldHalf, title: "Avoid 'Sapa' Mode", text: "If your balance hits zero, game over. Keep 10% cash 'under your pillow'." },
+                  { icon: Coins, title: "The 72-Hour Rule", text: "Wait 3 days before major non-essential buys." }
                 ].map((item, i) => (
                   <div key={i} className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 flex gap-5">
                     <div className="p-4 bg-emerald-50 text-emerald-600 rounded-2xl h-fit"><item.icon size={24}/></div>
@@ -320,118 +232,46 @@ const App: React.FC = () => {
                 ))}
               </div>
             </section>
-
-            <section className="space-y-8">
-              <h3 className="text-3xl font-black text-slate-900 flex items-center gap-4 border-l-8 border-amber-500 pl-6">Street Advice</h3>
-              <div className="space-y-4">
-                {[
-                  { icon: ShieldHalf, title: "Avoid 'Sapa' Mode", text: "Cash is king but assets are emperors. Keep an emergency box (Naira Box) always." },
-                  { icon: Coins, title: "72-Hour Rule", text: "Before you flex on non-essentials, wait 3 days. Your account balance will thank you." },
-                  { icon: Info, title: "Family & Legacy", text: "Marriage and kids add happiness but also monthly costs. Plan for school fees and home needs." }
-                ].map((item, i) => (
-                  <div key={i} className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 flex gap-5">
-                    <div className="p-4 bg-amber-50 text-amber-600 rounded-2xl h-fit"><item.icon size={24}/></div>
-                    <div><h4 className="font-black text-lg text-slate-900">{item.title}</h4><p className="text-slate-500 text-sm font-medium leading-relaxed">{item.text}</p></div>
-                  </div>
-                ))}
-              </div>
-            </section>
           </div>
-          
-          <button onClick={() => setStatus(GameStatus.SETUP)} className="w-full py-10 bg-slate-900 text-white rounded-[3rem] font-black text-3xl shadow-2xl hover:bg-emerald-600 transition-all">Begin My Story</button>
+          <button onClick={() => setStatus(GameStatus.SETUP)} className="w-full py-10 bg-slate-900 text-white rounded-[3rem] font-black text-3xl shadow-2xl hover:bg-emerald-600 transition-all">Ready to Hustle?</button>
         </div>
       )}
 
       {status === GameStatus.SETUP && (
-        <div className="bg-white p-8 md:p-12 rounded-[4rem] shadow-2xl max-w-4xl mx-auto space-y-12 border border-slate-100 animate-in slide-in-from-bottom-12 overflow-hidden">
+        <div className="bg-white p-8 md:p-12 rounded-[4rem] shadow-2xl max-w-4xl mx-auto space-y-12 border border-slate-100 animate-in slide-in-from-bottom-12">
            <header className="text-center space-y-2">
-             <h2 className="text-5xl font-black logo-font text-slate-900 tracking-tighter uppercase">Identify Your Profile</h2>
+             <h2 className="text-5xl font-black logo-font text-slate-900 tracking-tighter uppercase">Identity Setup</h2>
            </header>
            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase text-slate-400 ml-4 flex items-center gap-2"><User size={12}/> Name</label>
-                <input value={setup.name} onChange={e => setSetup({...setup, name: e.target.value})} className="w-full bg-slate-50 p-6 rounded-[2rem] font-bold shadow-inner outline-none focus:ring-2 focus:ring-emerald-500 transition-all" placeholder="Enter name..." />
+                <label className="text-[10px] font-black uppercase text-slate-400 ml-4 flex items-center gap-2"><User size={12}/> Your Name</label>
+                <input value={setup.name} onChange={e => setSetup({...setup, name: e.target.value})} className="w-full bg-slate-50 p-6 rounded-[2rem] font-bold shadow-inner outline-none" placeholder="Street Name" />
               </div>
-              
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase text-slate-400 ml-4 flex items-center gap-2">Gender</label>
-                <div className="flex bg-slate-50 p-2 rounded-[2rem] shadow-inner">
-                  {['male', 'female', 'other'].map(g => (
-                    <button key={g} onClick={() => setSetup({...setup, gender: g as any})} className={`flex-1 py-4 rounded-[1.5rem] font-black text-xs uppercase tracking-widest transition-all ${setup.gender === g ? 'bg-white text-emerald-600 shadow-md' : 'text-slate-400'}`}>
-                      {g}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase text-slate-400 ml-4 flex items-center gap-2"><Briefcase size={12}/> Career</label>
+                <label className="text-[10px] font-black uppercase text-slate-400 ml-4 flex items-center gap-2"><Briefcase size={12}/> The Hustle</label>
                 <select value={setup.job} onChange={e => setSetup({...setup, job: e.target.value})} className="w-full bg-slate-50 p-6 rounded-[2rem] font-bold shadow-inner outline-none">
                   {JOBS.map(j => <option key={j} value={j}>{j}</option>)}
                 </select>
               </div>
-
-              {setup.job === "Custom Hustle..." && (
-                <div className="space-y-2 animate-in slide-in-from-top-4">
-                  <label className="text-[10px] font-black uppercase text-slate-400 ml-4">Define Hustle</label>
-                  <input value={setup.customJob} onChange={e => setSetup({...setup, customJob: e.target.value})} className="w-full bg-slate-50 p-6 rounded-[2rem] font-bold shadow-inner outline-none focus:ring-2 focus:ring-emerald-500 transition-all" placeholder="e.g. Crypto Miner" />
-                </div>
-              )}
-
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase text-slate-400 ml-4 flex items-center gap-2"><MapPin size={12}/> Location</label>
                 <select value={setup.city} onChange={e => setSetup({...setup, city: e.target.value})} className="w-full bg-slate-50 p-6 rounded-[2rem] font-bold shadow-inner outline-none">
                   {NIGERIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
-
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase text-slate-400 ml-4 flex items-center gap-2"><Banknote size={12}/> Salary (₦)</label>
+                <label className="text-[10px] font-black uppercase text-slate-400 ml-4 flex items-center gap-2"><Banknote size={12}/> Monthly Income (₦)</label>
                 <input type="number" value={setup.salary} onChange={e => setSetup({...setup, salary: Number(e.target.value)})} className="w-full bg-slate-50 p-6 rounded-[2rem] font-bold shadow-inner outline-none" />
               </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase text-slate-400 ml-4 flex items-center gap-2"><Globe size={12}/> Language</label>
-                <select value={setup.narrationLanguage} onChange={e => setSetup({...setup, narrationLanguage: e.target.value as any})} className="w-full bg-slate-50 p-6 rounded-[2rem] font-bold shadow-inner outline-none">
-                  <option value="English">English</option>
-                  <option value="Pidgin">Pidgin</option>
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase text-slate-400 ml-4 flex items-center gap-2"><Users size={12}/> Status</label>
-                <div className="flex bg-slate-50 p-2 rounded-[2rem] shadow-inner">
-                  {['single', 'married'].map(m => (
-                    <button key={m} onClick={() => setSetup({...setup, maritalStatus: m as any})} className={`flex-1 py-4 rounded-[1.5rem] font-black text-xs uppercase tracking-widest transition-all ${setup.maritalStatus === m ? 'bg-white text-emerald-600 shadow-md' : 'text-slate-400'}`}>
-                      {m}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {setup.maritalStatus === 'married' && (
-                <div className="space-y-2 col-span-full md:col-span-1 animate-in slide-in-from-left-4">
-                  <label className="text-[10px] font-black uppercase text-slate-400 ml-4 flex items-center gap-2"><Baby size={12}/> Children</label>
-                  <div className="flex items-center gap-6 bg-slate-50 p-4 rounded-[2rem] shadow-inner">
-                    <button onClick={() => setSetup({...setup, numberOfKids: Math.max(0, setup.numberOfKids - 1)})} className="p-3 bg-white rounded-xl text-slate-400 hover:text-rose-500 shadow-sm"><Minus size={16}/></button>
-                    <span className="flex-1 text-center font-black text-2xl">{setup.numberOfKids}</span>
-                    <button onClick={() => setSetup({...setup, numberOfKids: Math.min(5, setup.numberOfKids + 1)})} className="p-3 bg-white rounded-xl text-slate-400 hover:text-emerald-500 shadow-sm"><Plus size={16}/></button>
-                  </div>
-                </div>
-              )}
            </div>
-           
-           <button onClick={handleStart} className="w-full py-9 bg-emerald-600 text-white rounded-[2.5rem] font-black text-3xl shadow-2xl hover:bg-emerald-700 transition-all transform active:scale-95">Confirm Profile</button>
+           <button onClick={handleStart} className="w-full py-9 bg-emerald-600 text-white rounded-[2.5rem] font-black text-3xl shadow-2xl hover:bg-emerald-700 transition-all">Confirm Profile</button>
         </div>
       )}
 
       {status === GameStatus.LOADING && (
-        <div className="flex flex-col items-center justify-center min-h-[70vh] space-y-10 text-center">
+        <div className="flex flex-col items-center justify-center min-h-[70vh] space-y-10">
           <Loader2 className="w-24 h-24 text-emerald-600 animate-spin"/>
-          <div className="space-y-4">
-            <p className="font-black text-slate-900 text-2xl tracking-[0.5em] uppercase">Spawning in Nigeria...</p>
-            <p className="text-slate-400 font-medium">Navigating traffic and checking the dollar rate...</p>
-          </div>
+          <p className="font-black text-slate-900 text-2xl tracking-[0.5em] uppercase text-center">Spawning in Nigeria...</p>
         </div>
       )}
 
@@ -454,19 +294,12 @@ const App: React.FC = () => {
           
           <Dashboard stats={stats} netAssets={currentNetAssets} stocks={stocks} portfolio={portfolio} />
           
-          {!currentScenario && status === GameStatus.PLAYING && (
-             <div className="flex flex-col items-center justify-center py-24 bg-white rounded-[4rem] border border-slate-100 shadow-sm animate-pulse">
-                <Loader2 size={48} className="text-emerald-500 animate-spin mb-4" />
-                <p className="font-black text-slate-400 uppercase tracking-widest text-xs">Finding your next move...</p>
-             </div>
-          )}
-
-          {activeTab === 'scenario' && currentScenario && (
+          {activeTab === 'scenario' && (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pb-10">
               <div className="lg:col-span-8 space-y-8">
                 {lastConsequences ? (
                   <div className="bg-white p-12 rounded-[4rem] shadow-2xl text-center space-y-12 border border-slate-50 overflow-hidden relative">
-                    <h3 className="text-5xl font-black logo-font text-slate-900 tracking-tighter uppercase">Market Outcome</h3>
+                    <h3 className="text-5xl font-black logo-font text-slate-900 tracking-tighter uppercase">Last Week's Result</h3>
                     <div className="space-y-4">
                       {lastConsequences.items.map((it, i) => (
                         <div key={i} className={`p-8 rounded-[3rem] text-left border italic font-bold bg-slate-50 border-slate-200 text-slate-700`}>"{it.text}"</div>
@@ -476,13 +309,13 @@ const App: React.FC = () => {
                        <h4 className="text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-4">Street Wisdom</h4>
                        <p className="text-3xl font-black text-emerald-950">{lastConsequences.lesson}</p>
                     </div>
-                    <button onClick={proceedToNextWeek} className="w-full py-8 bg-slate-900 text-white rounded-[2.5rem] font-black text-2xl shadow-xl hover:bg-emerald-600 transition-all">Next Week</button>
+                    <button onClick={() => { setLastConsequences(null); if(nextScenario){ setCurrentScenario(nextScenario); setNextScenario(null); } }} className="w-full py-8 bg-slate-900 text-white rounded-[2.5rem] font-black text-2xl shadow-xl hover:bg-emerald-600 transition-all">Next Week</button>
                   </div>
                 ) : (
                   <div className="space-y-8">
                     <div className="bg-white rounded-[4rem] overflow-hidden shadow-2xl border border-slate-100">
                       <div className="h-[400px] w-full relative">
-                        <img src={`https://picsum.photos/seed/naira-${currentScenario?.imageTheme}/1200/800`} className="w-full h-full object-cover" alt="Scenario context"/>
+                        <img src={`https://picsum.photos/seed/naira-${currentScenario?.imageTheme}/1200/800`} className="w-full h-full object-cover"/>
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex items-end p-12">
                           <h2 className="text-5xl font-black logo-font text-white tracking-tighter uppercase">{currentScenario?.title}</h2>
                         </div>
@@ -504,7 +337,7 @@ const App: React.FC = () => {
                               </div>
                               <div className="text-right ml-4">
                                 <p className={`text-2xl font-black`}>
-                                  {c.impact.balance === 0 ? '₦0' : `${c.impact.balance > 0 ? '+' : ''}₦${Math.abs(c.impact.balance).toLocaleString()}`}
+                                  {c.impact.balance === 0 ? '₦0' : `₦${Math.abs(c.impact.balance).toLocaleString()}`}
                                 </p>
                               </div>
                             </div>
@@ -552,7 +385,7 @@ const App: React.FC = () => {
 
           {activeTab === 'analytics' && (
             <div className="bg-white p-16 rounded-[4rem] shadow-2xl max-w-5xl mx-auto space-y-12">
-               <h3 className="text-5xl font-black text-center text-slate-900 tracking-tighter uppercase">Spending Analysis</h3>
+               <h3 className="text-5xl font-black text-center text-slate-900 tracking-tighter uppercase">Spending Flow</h3>
                <div className="h-[400px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={Object.entries(stats.spendingByCategory).map(([name, value]) => ({ name, value }))}>
@@ -571,15 +404,7 @@ const App: React.FC = () => {
 
           {activeTab === 'history' && (
             <div className="bg-white p-12 rounded-[4rem] shadow-2xl border border-slate-50 max-w-5xl mx-auto min-h-[60vh] flex flex-col">
-               <div className="flex justify-between items-center mb-10">
-                 <h3 className="text-4xl font-black logo-font flex items-center gap-5 text-slate-900 tracking-tighter"><ScrollText size={32} /> Street Ledger</h3>
-                 <button 
-                  onClick={handleRestart}
-                  className="flex items-center gap-2 px-6 py-3 bg-rose-50 text-rose-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-rose-100 transition-colors"
-                 >
-                   <RefreshCcw size={16} /> Reset Hustle
-                 </button>
-               </div>
+               <h3 className="text-4xl font-black logo-font mb-10 flex items-center gap-5 text-slate-900 tracking-tighter"><ScrollText size={32} /> Street Ledger</h3>
                <div className="space-y-4 overflow-y-auto max-h-[60vh] pr-4 custom-scrollbar">
                  {history.slice().reverse().map((h, i) => (
                    <div key={i} className="flex justify-between items-start p-8 bg-slate-50 rounded-[2.5rem] border border-slate-100 hover:border-slate-200 transition-all group">
@@ -597,12 +422,6 @@ const App: React.FC = () => {
                      </div>
                    </div>
                  ))}
-                 {history.length === 0 && (
-                   <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-                     <ScrollText size={48} className="mb-4 opacity-20" />
-                     <p className="font-black uppercase tracking-widest text-xs">No records yet. Start the grind!</p>
-                   </div>
-                 )}
                </div>
             </div>
           )}
@@ -613,24 +432,11 @@ const App: React.FC = () => {
         <div className="flex flex-col items-center justify-center min-h-screen py-20 animate-in zoom-in duration-500">
           <div className="bg-white p-12 md:p-24 rounded-[5rem] shadow-2xl border-4 border-slate-50 space-y-16 max-w-4xl w-full mx-auto text-center">
             <h2 className={`text-7xl font-black tracking-tighter uppercase ${status === GameStatus.VICTORY ? 'text-emerald-600' : 'text-rose-600'}`}>
-              {status === GameStatus.VICTORY ? 'Hustle King!' : 'Sapa Caught You'}
+              {status === GameStatus.VICTORY ? 'Hustle King!' : 'Game Over'}
             </h2>
-            <p className="text-2xl font-black text-slate-400 uppercase tracking-widest">Performance Grade: {report.grade || 'C'}</p>
+            <p className="text-2xl font-black text-slate-400 uppercase tracking-widest">Grade: {report.grade || 'C'}</p>
             <div className="p-8 bg-slate-50 rounded-[3rem] text-xl font-bold text-slate-800 italic">{report.verdict}</div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-               {report.points?.map((p: string, i: number) => (
-                 <div key={i} className="p-6 bg-emerald-50 rounded-2xl text-emerald-700 text-sm font-bold border border-emerald-100">{p}</div>
-               ))}
-            </div>
-            <button 
-              onClick={() => {
-                localStorage.removeItem(SAVE_KEY);
-                window.location.reload();
-              }} 
-              className="w-full py-12 bg-slate-900 text-white rounded-[4rem] font-black text-3xl shadow-2xl hover:bg-emerald-600 transition-all flex items-center justify-center gap-4"
-            >
-              <RefreshCcw size={32} /> Restart Cycle
-            </button>
+            <button onClick={() => window.location.reload()} className="w-full py-12 bg-slate-900 text-white rounded-[4rem] font-black text-3xl shadow-2xl hover:bg-emerald-600 transition-all">Restart Life Cycle</button>
           </div>
         </div>
       )}
