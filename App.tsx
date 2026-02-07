@@ -1,92 +1,64 @@
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { 
   PlayerStats, 
   Scenario, 
   GameLog, 
   GameStatus, 
-  Choice,
   Stock,
   PortfolioItem
 } from './types';
-import { getNextScenario, getEndGameAnalysis, getVictoryAnalysis } from './services/geminiService';
-import Dashboard from './components/Dashboard';
+// Fixed: Importing from root to resolve build issues with nested directories
+import { getNextScenario, getEndGameAnalysis } from './geminiService';
+import Dashboard from './Dashboard';
 import StockMarket from './StockMarket';
 import SocialFeed from './SocialFeed';
 import { 
+  ResponsiveContainer, 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis as ReYAxis,
+  Cell
+} from 'recharts';
+import { 
   Loader2, 
-  Banknote, 
   Heart, 
-  Skull, 
-  Flame, 
-  Crown, 
-  AlertCircle, 
-  ArrowRight,
-  ArrowLeft,
-  Zap,
-  Users,
-  MapPin,
-  Briefcase,
-  BookOpen,
-  TrendingUp,
-  ShieldCheck,
-  Gamepad2,
-  Lightbulb,
-  Coins,
-  PiggyBank,
-  Scale,
-  Percent,
-  Trophy,
-  BarChart,
-  ClipboardCheck,
-  ArrowRightCircle,
-  History,
-  TrendingDown,
-  Info,
-  ShieldAlert,
-  HelpCircle,
-  MousePointer2,
-  BellRing,
-  ArrowUpCircle,
-  ArrowDownCircle,
-  Plus,
-  Minus,
+  ArrowRight, 
+  Zap, 
+  Users, 
+  MapPin, 
+  Briefcase, 
+  TrendingUp, 
+  Target,
+  User,
+  Calendar,
   Baby,
-  Store,
-  PackagePlus
+  Trash2,
+  Banknote,
+  ScrollText,
+  Gavel,
+  CheckCircle2,
+  Languages,
+  Wallet,
+  ShieldAlert,
+  Frown,
+  Activity,
+  ShieldHalf,
+  Coins,
+  Scale,
+  BrainCircuit,
+  PiggyBank,
+  Lightbulb,
+  ShieldCheck,
+  Smartphone,
+  Info
 } from 'lucide-react';
 
+const JOBS = ["Digital Hustler", "Civil Servant", "Banker", "Market Trader", "Tech Bro", "Content Creator", "Artisan", "Custom Hustle..."];
 const NIGERIAN_STATES = [
-  "Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa", "Benue", "Borno", 
-  "Cross River", "Delta", "Ebonyi", "Edo", "Ekiti", "Enugu", "FCT - Abuja", "Gombe", 
-  "Imo", "Jigawa", "Kaduna", "Kano", "Katsina", "Kebbi", "Kogi", "Kwara", "Lagos", 
-  "Nasarawa", "Niger", "Ogun", "Ondo", "Osun", "Oyo", "Plateau", "Rivers", 
-  "Sokoto", "Taraba", "Yobe", "Zamfara"
+  "Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa", "Benue", "Borno", "Cross River", "Delta", "Ebonyi", "Edo", "Ekiti", "Enugu", "FCT - Abuja", "Gombe", "Imo", "Jigawa", "Kaduna", "Kano", "Katsina", "Kebbi", "Kogi", "Kwara", "Lagos", "Nasarawa", "Niger", "Ogun", "Ondo", "Osun", "Oyo", "Plateau", "Rivers", "Sokoto", "Taraba", "Yobe", "Zamfara"
 ];
-
-const JOBS = [
-  "Digital Hustler", "Civil Servant", "Banker", "Market Trader", 
-  "Tech Sis/Bro", "Doctor", "Artisan", "Content Creator", "Student"
-];
-
-const JOB_DEFAULTS: Record<string, number> = {
-  "Digital Hustler": 150000,
-  "Civil Servant": 75000,
-  "Banker": 250000,
-  "Market Trader": 0,
-  "Tech Sis/Bro": 450000,
-  "Doctor": 350000,
-  "Artisan": 100000,
-  "Content Creator": 200000,
-  "Student": 30000
-};
-
-const CHALLENGES = [
-  { id: 'sapa-max', name: 'Sapa Level Max', icon: Flame, color: 'text-orange-500', start: 10000, description: 'High inflation, low starting cash.' },
-  { id: 'black-tax', name: 'Black Tax Heavy', icon: Heart, color: 'text-rose-500', start: 50000, description: 'Family needs pop up more often.' },
-  { id: 'silver-spoon', name: 'Silver Spoon', icon: Crown, color: 'text-indigo-500', start: 500000, description: 'More cash, but lifestyle traps are deadly.' }
-];
-
 const INITIAL_STOCKS: Stock[] = [
   { id: 'mtn-ng', name: 'MTN Nigeria', price: 280, history: [270, 275, 280], sector: 'Telecom', assetType: 'stock' },
   { id: 'zenith', name: 'Zenith Bank', price: 42, history: [38, 40, 42], sector: 'Banking', assetType: 'stock' },
@@ -94,34 +66,9 @@ const INITIAL_STOCKS: Stock[] = [
   { id: 'stanbic-fund', name: 'Stanbic IBTC Fund', price: 100, history: [100, 100, 100], sector: 'Growth', assetType: 'mutual_fund' },
 ];
 
-const FINANCIAL_LESSONS = [
-  { title: "The Choice: Owambe vs. Assets", icon: <Coins className="text-amber-500" />, lesson: "Wealth is built in the gap between what you earn and what you spend. Every Owambe is a withdrawal from your future." },
-  { title: "Mutual Funds vs. Stocks", icon: <TrendingUp className="text-emerald-500" />, lesson: "Stocks are high-risk/high-reward. Mutual funds are professional managed pools that lower your risk through diversification." },
-  { title: "The Black Tax Reality", icon: <Users className="text-indigo-500" />, lesson: "Budget for family assistance. 'No' is a complete sentence that protects your financial health." },
-  { title: "The Trader's Secret", icon: <Store className="text-blue-500" />, lesson: "Inventory is your lifeblood. An empty shop earns 0. Always keep enough cash to restock." },
-  { title: "Ponzi & 'Get Rich Quick'", icon: <ShieldAlert className="text-red-500" />, lesson: "If it sounds too good to be true, it is a scam. Protect your capital at all costs." }
-];
+const COLORS = ['#10b981', '#6366f1', '#f59e0b', '#ef4444', '#ec4899', '#8b5cf6', '#06b6d4'];
 
-const FINANCIAL_RUDIMENTS = [
-  { title: "The 50/30/20 Budget Rule", icon: <Scale className="text-indigo-600" />, desc: "Allocate 50% for Needs, 30% for Wants, and 20% for Savings & Investments." },
-  { title: "Emergency Fund (Sapa Shield)", icon: <PiggyBank className="text-emerald-600" />, desc: "A stash of cash for the unexpected—hospital bills or salary delays." },
-  { title: "Good Debt vs. Bad Debt", icon: <AlertCircle className="text-rose-600" />, desc: "Good debt helps you earn (business loan). Bad debt drains you (high-interest consumer loan)." },
-  { title: "Compound Interest Magic", icon: <Percent className="text-amber-600" />, desc: "Earning interest on interest. Over time, small amounts grow into massive wealth." },
-  { title: "The Inflation Monster", icon: <TrendingDown className="text-red-600" />, desc: "Inflation makes your money buy less. Don't leave all your cash idle in a bank." },
-  { title: "Restock or Regret", icon: <PackagePlus className="text-blue-600" />, desc: "For traders, 'money in hand' is dangerous if 'goods on shelf' are low." }
-];
-
-const TUTORIAL_STEPS = [
-  { title: "Wallet (Cash)", icon: <Skull size={32} className="text-slate-900" />, desc: "If hits ₦0, Sapa wins. Game Over." },
-  { title: "Naira Box (Savings)", icon: <PiggyBank size={32} className="text-emerald-600" />, desc: "Your buffer for emergency bills." },
-  { title: "Shop Stock (Inventory)", icon: <Store size={32} className="text-blue-600" />, desc: "Only for Traders. You must spend cash to fill your shop to make sales!" }
-];
-
-const HOW_TO_PLAY_STEPS = [
-  { title: "Weekly Moves", icon: <MousePointer2 size={24} className="text-indigo-600" />, desc: "Pick 2 options every week. Balance vibes and wealth." },
-  { title: "Trader Sales", icon: <Store size={24} className="text-emerald-600" />, desc: "Traders make daily sales based on their Stock levels. No fixed salary!" },
-  { title: "Salary Alert", icon: <BellRing size={24} className="text-amber-500" />, desc: "Fixed salary enters every 4 weeks for non-traders." }
-];
+const SAVE_KEY = 'nairawise_v26_stable';
 
 const App: React.FC = () => {
   const [status, setStatus] = useState<GameStatus>(GameStatus.START);
@@ -130,467 +77,564 @@ const App: React.FC = () => {
   const [nextScenario, setNextScenario] = useState<Scenario | null>(null);
   const [history, setHistory] = useState<GameLog[]>([]);
   const [lastConsequences, setLastConsequences] = useState<{items: {text: string, decision: string}[], lesson: string} | null>(null);
-  const [activeTab, setActiveTab] = useState<'scenario' | 'invest' | 'history'>('scenario');
+  const [activeTab, setActiveTab] = useState<'scenario' | 'invest' | 'history' | 'analytics'>('scenario');
   const [stocks, setStocks] = useState<Stock[]>(INITIAL_STOCKS);
   const [portfolio, setPortfolio] = useState<PortfolioItem[]>([]);
   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
-  const [savingsInput, setSavingsInput] = useState('');
-  const [restockInput, setRestockInput] = useState('');
-  const [report, setReport] = useState('');
+  const [negotiatedIndices, setNegotiatedIndices] = useState<Set<number>>(new Set());
+  const [report, setReport] = useState<any>(null);
   const isPrefetching = useRef(false);
 
   const [setup, setSetup] = useState({ 
-    name: '', gender: 'male' as 'male' | 'female' | 'other', job: JOBS[0], 
-    salary: JOB_DEFAULTS[JOBS[0]], city: NIGERIAN_STATES[24], challengeId: 'sapa-max', 
-    maritalStatus: 'single' as 'single' | 'married', numberOfKids: 0
+    name: '', gender: 'male' as any, ageBracket: "26-35", job: JOBS[0], customJob: '', salary: 150000, 
+    city: "Lagos", maritalStatus: 'single' as any, numberOfKids: 0, narrationLanguage: 'Pidgin' as any
   });
 
-  const getNetAssets = useCallback(() => {
+  const currentNetAssets = useMemo(() => {
     if (!stats) return 0;
-    const stockVal = portfolio.reduce((acc, p) => acc + (stocks.find(s => s.id === p.stockId)?.price || 0) * p.shares, 0);
-    return stats.balance + stats.savings + stockVal + (stats.inventory || 0) - stats.debt;
+    const portfolioValue = portfolio.reduce((acc, p) => {
+      const stock = stocks.find(s => s.id === p.stockId);
+      return acc + (stock ? stock.price * p.shares : 0);
+    }, 0);
+    return stats.balance + portfolioValue;
   }, [stats, portfolio, stocks]);
 
-  const prefetch = useCallback(async (s: PlayerStats, h: GameLog[]) => {
+  useEffect(() => {
+    const saved = localStorage.getItem(SAVE_KEY);
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        setStats(data.stats);
+        setHistory(data.history || []);
+        setPortfolio(data.portfolio || []);
+        setStocks(data.stocks || INITIAL_STOCKS);
+        setStatus(GameStatus.PLAYING);
+        prefetch(data.stats, data.history || [], true);
+      } catch (e) { console.error("Load failed", e); }
+    }
+  }, []);
+
+  const prefetch = useCallback(async (s: PlayerStats, h: GameLog[], immediate = false) => {
     if (isPrefetching.current) return;
     isPrefetching.current = true;
     try {
       const scene = await getNextScenario(s, h);
-      setNextScenario(scene);
-    } catch (e) { console.error(e); }
+      if (immediate) {
+        setCurrentScenario(scene);
+      } else {
+        setNextScenario(scene);
+      }
+    } catch (e) { console.error("Scenario Error", e); }
     isPrefetching.current = false;
   }, []);
 
   const handleStart = async () => {
-    if (!setup.name) return alert("Abeg, what is your name?");
+    if (!setup.name) return alert("Please enter your name!");
     setStatus(GameStatus.LOADING);
-    const challenge = CHALLENGES.find(c => c.id === setup.challengeId)!;
-    
+    const finalJob = setup.job === "Custom Hustle..." ? setup.customJob : setup.job;
     const initial: PlayerStats = {
-      name: setup.name, gender: setup.gender, age: 24, 
-      salary: setup.job === "Market Trader" ? 0 : (setup.salary || 0),
-      balance: challenge.start, savings: 0, debt: 0, happiness: 80,
-      currentWeek: 1, job: setup.job, city: setup.city, challenge: challenge.name,
-      maritalStatus: setup.maritalStatus, 
-      numberOfKids: setup.maritalStatus === 'married' ? setup.numberOfKids : 0,
-      inventory: setup.job === "Market Trader" ? 50000 : 0,
-      businessDebt: 0
+      ...setup, job: finalJob, balance: setup.salary / 2, savings: 0, debt: 0, happiness: 80, 
+      currentWeek: 1, challenge: "The Grind Begins", inventory: [], businessDebt: 0, 
+      lastPaidWeeks: {}, spendingByCategory: {}
     };
     setStats(initial);
     try {
-      const scene = await getNextScenario(initial, []);
-      setCurrentScenario(scene);
+      const scene1 = await getNextScenario(initial, []);
+      setCurrentScenario(scene1);
       setStatus(GameStatus.PLAYING);
-      prefetch(initial, []);
-    } catch (e) { setStatus(GameStatus.START); }
+      prefetch({ ...initial, currentWeek: 2 }, []);
+    } catch (e) { 
+      console.error(e);
+      setStatus(GameStatus.START); 
+    }
   };
 
-  const toggleChoice = (index: number) => {
-    setSelectedIndices(prev => prev.includes(index) ? prev.filter(i => i !== index) : (prev.length < 2 ? [...prev, index] : prev));
+  const resetGame = () => {
+    localStorage.removeItem(SAVE_KEY);
+    setStats(null);
+    setHistory([]);
+    setCurrentScenario(null);
+    setNextScenario(null);
+    setPortfolio([]);
+    setReport(null);
+    setLastConsequences(null);
+    setStatus(GameStatus.START);
+    setStocks(INITIAL_STOCKS);
+  };
+
+  const toggleNegotiation = (idx: number) => {
+    setNegotiatedIndices(prev => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
   };
 
   const confirmChoice = async () => {
     if (!stats || !currentScenario || selectedIndices.length === 0) return;
     
-    let balImpact = 0;
+    const isPayday = stats.currentWeek % 4 === 0;
+    const salaryAmt = isPayday ? stats.salary : 0;
+    
+    let balImpact = salaryAmt;
     let hapImpact = 0;
-    let savImpact = 0;
-    let debtImpact = 0;
-    let invImpact = 0;
+    let newSpending = { ...stats.spendingByCategory };
+    let newPaidWeeks = { ...stats.lastPaidWeeks };
+    let newPortfolio = [...portfolio];
     let cons: {text: string, decision: string}[] = [];
 
-    // Base Turn Sales Logic for Traders
-    if (stats.job === "Market Trader" && stats.inventory > 0) {
-      const salesPercent = 0.1 + (Math.random() * 0.15); // Sells 10-25% of inventory weekly
-      const costOfGoods = Math.floor(stats.inventory * salesPercent);
-      const profitMargin = 1.2 + (Math.random() * 0.3); // 20-50% profit
-      const salesRevenue = Math.floor(costOfGoods * profitMargin);
-      
-      balImpact += salesRevenue;
-      invImpact -= costOfGoods;
-      cons.push({ 
-        text: `Weekly Sales: You sold some goods for ₦${salesRevenue.toLocaleString()} (₦${(salesRevenue-costOfGoods).toLocaleString()} profit).`, 
-        decision: "MARKET SALES" 
-      });
-    }
-
-    // Salary Logic (Non-traders)
-    if (stats.job !== "Market Trader" && stats.currentWeek % 4 === 0) {
-      balImpact += stats.salary;
-      cons.push({ text: `Salary Alert! ₦${stats.salary.toLocaleString()} don enter. Manage am well.`, decision: "SALARY" });
+    if (isPayday) {
+      cons.push({ text: `Salary Credited: +₦${salaryAmt.toLocaleString()}`, decision: "Monthly Salary" });
     }
 
     selectedIndices.forEach(idx => {
       const choice = currentScenario.choices[idx];
-      balImpact += choice.impact.balance;
+      let cost = choice.impact.balance;
+      
+      if (negotiatedIndices.has(idx)) {
+        cost = Math.floor(cost * 0.85);
+        cons.push({ text: `Haggled! You saved a few thousands.`, decision: `Negotiated ${choice.text}` });
+      }
+
+      balImpact += cost;
       hapImpact += choice.impact.happiness;
-      savImpact += choice.impact.savings || 0;
-      debtImpact += choice.impact.debt || 0;
       cons.push({ text: choice.consequence, decision: choice.text });
+      
+      if (choice.category) {
+        if (choice.category !== 'Saving') {
+          newSpending[choice.category] = (newSpending[choice.category] || 0) + Math.abs(cost);
+        }
+        if (choice.category === 'Essential' || choice.category === 'Transport') {
+           newPaidWeeks[choice.category] = stats.currentWeek;
+        }
+      }
 
       if (choice.investmentId) {
         const stock = stocks.find(s => s.id === choice.investmentId);
         if (stock) {
-          setPortfolio(prev => {
-            const has = prev.find(p => p.stockId === stock.id);
-            if (has) return prev.map(p => p.stockId === stock.id ? {...p, shares: p.shares + 1} : p);
-            return [...prev, { stockId: stock.id, shares: 1, averagePrice: stock.price }];
-          });
+          const investedAmount = Math.abs(cost);
+          const unitsToBuy = Math.floor(investedAmount / stock.price);
+          if (unitsToBuy > 0) {
+            const existingIdx = newPortfolio.findIndex(p => p.stockId === stock.id);
+            if (existingIdx >= 0) {
+              newPortfolio[existingIdx].shares += unitsToBuy;
+            } else {
+              newPortfolio.push({ stockId: stock.id, shares: unitsToBuy, averagePrice: stock.price });
+            }
+          }
         }
       }
     });
 
+    // NOTE: Removed hardcoded food/transport penalties to focus on wealth generation strategy.
+    
     const nextWeek = stats.currentWeek + 1;
-    const newStats = {
+    const newStats: PlayerStats = {
       ...stats,
       balance: stats.balance + balImpact,
-      savings: Math.max(0, stats.savings + savImpact),
-      debt: Math.max(0, stats.debt + debtImpact),
-      inventory: Math.max(0, stats.inventory + invImpact),
       happiness: Math.min(100, Math.max(0, stats.happiness + hapImpact)),
-      currentWeek: nextWeek
+      currentWeek: nextWeek,
+      lastPaidWeeks: newPaidWeeks,
+      spendingByCategory: newSpending
     };
 
-    if (newStats.balance < 0) {
-      const deficit = Math.abs(newStats.balance);
-      if (newStats.savings >= deficit) {
-        newStats.savings -= deficit;
-        newStats.balance = 0;
-        cons.push({ text: "Wallet dry, used Naira Box savings to pay bills.", decision: "AUTO-SAVINGS" });
-      } else {
-        const analysis = await getEndGameAnalysis(newStats, history);
-        setReport(analysis);
-        setStatus(GameStatus.GAMEOVER);
-        return;
-      }
-    }
-
-    if (nextWeek > 24) {
-      setReport(await getVictoryAnalysis(newStats, getNetAssets()));
-      setStatus(GameStatus.VICTORY);
+    if (newStats.balance < 0 || nextWeek > 24) {
+      setStatus(GameStatus.LOADING);
+      const res = await getEndGameAnalysis(newStats, history, newStats.balance < 0 ? "Broke" : "Completed");
+      setReport(res);
+      setStatus(newStats.balance < 0 ? GameStatus.GAMEOVER : GameStatus.VICTORY);
       return;
     }
 
     setStats(newStats);
+    setPortfolio(newPortfolio);
     setLastConsequences({ items: cons, lesson: currentScenario.lesson });
-    setHistory([...history, { 
+    
+    const newHistory = [...history, { 
       week: stats.currentWeek, title: currentScenario.title, 
       decision: selectedIndices.map(i => currentScenario.choices[i].text).join(" & "), 
       consequence: cons.map(c => c.text).join(" "), amount: balImpact, balanceAfter: newStats.balance 
-    }]);
+    }];
+    setHistory(newHistory);
     setSelectedIndices([]);
-    if (!nextScenario) prefetch(newStats, history);
-  };
-
-  const handleRestock = () => {
-    const amt = parseInt(restockInput);
-    if (!stats || isNaN(amt) || amt <= 0 || stats.balance < amt) return;
-    const newStats = { ...stats, balance: stats.balance - amt, inventory: stats.inventory + amt };
-    setStats(newStats);
-    setHistory([...history, { 
-      week: stats.currentWeek, title: "Shop Restock", decision: `Spent ₦${amt.toLocaleString()} on goods`, 
-      consequence: "Shop is now full for next week's sales.", amount: -amt, balanceAfter: newStats.balance 
-    }]);
-    setRestockInput('');
-  };
-
-  const nextTurn = () => {
-    if (nextScenario) {
-      setStocks(prev => prev.map(s => {
-        const newPrice = Math.max(1, Math.floor(s.price * (1 + (Math.random() * 0.16 - 0.07))));
-        return { ...s, price: newPrice, history: [...s.history.slice(-14), newPrice] };
-      }));
-      setCurrentScenario(nextScenario);
-      setNextScenario(null);
-      setLastConsequences(null);
-      if (stats) prefetch(stats, history);
-    } else {
-      setStatus(GameStatus.LOADING);
-      setTimeout(() => setStatus(GameStatus.PLAYING), 800);
-    }
+    setNegotiatedIndices(new Set());
+    
+    prefetch({ ...newStats, currentWeek: nextWeek + 1 }, newHistory);
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ stats: newStats, history: newHistory, portfolio: newPortfolio, stocks }));
   };
 
   return (
-    <div className="max-w-5xl mx-auto min-h-screen p-3 md:p-4 pb-24 overflow-x-hidden">
+    <div className="max-w-6xl mx-auto min-h-screen p-4 pb-24 relative selection:bg-emerald-100">
       {status === GameStatus.START && (
-        <div className="flex flex-col items-center justify-center min-h-[85vh] text-center space-y-8 md:space-y-12 animate-in fade-in zoom-in duration-1000">
-           <div className="relative">
-              <div className="absolute -inset-10 bg-emerald-500/10 blur-[80px] rounded-full animate-pulse" />
-              <h1 className="text-7xl md:text-[10rem] font-black text-slate-900 logo-font tracking-tighter relative leading-[0.8]">
-                 <span className="text-gradient">Naira<br/>Wise</span>
-              </h1>
+        <div className="flex flex-col items-center justify-center min-h-[90vh] text-center space-y-12 animate-in zoom-in">
+           <div className="space-y-4">
+             <h1 className="text-9xl font-black text-slate-900 logo-font tracking-tighter leading-none"><span className="text-gradient">Naira<br/>Wise</span></h1>
+             <p className="text-2xl font-medium text-slate-400 max-w-lg mx-auto italic">Master your money in the heart of Nigeria.</p>
            </div>
-           <p className="text-lg md:text-2xl font-medium text-slate-500 max-w-lg leading-relaxed px-4">
-              Master the hustle. Dodge Sapa. Build your legacy in 24 weeks.
-           </p>
-           <div className="flex flex-col sm:flex-row gap-4 md:gap-6 w-full max-w-xl px-4">
-             <button onClick={() => setStatus(GameStatus.HOW_TO_PLAY)} className="flex-1 py-5 md:py-7 bg-white border-2 md:border-4 border-slate-100 text-slate-900 rounded-[2rem] md:rounded-[2.5rem] font-black text-xl md:text-2xl flex items-center justify-center gap-3 transition-all hover:border-indigo-200 shadow-xl group">
-               <HelpCircle className="group-hover:text-indigo-600 transition-colors" /> Guide
-             </button>
-             <button onClick={() => setStatus(GameStatus.TUTORIAL)} className="flex-1 py-5 md:py-7 bg-slate-900 text-white rounded-[2rem] md:rounded-[2.5rem] font-black text-xl md:text-2xl flex items-center justify-center gap-4 transition-all hover:scale-105 active:scale-95 shadow-2xl">
-               Enter Hustle <ArrowRight />
-             </button>
-           </div>
+           <button onClick={() => setStatus(GameStatus.HOW_TO_PLAY)} className="px-12 py-8 bg-slate-900 text-white rounded-full font-black text-xl flex items-center justify-center gap-4 transition-all hover:scale-105 shadow-2xl active:scale-95">Enter Streets <ArrowRight/></button>
         </div>
       )}
 
-      {/* Info Screens (Simplified for code length) */}
-      {(status === GameStatus.HOW_TO_PLAY || status === GameStatus.TUTORIAL || status === GameStatus.LESSONS || status === GameStatus.RUDIMENTS) && (
-        <div className="max-w-4xl mx-auto bg-white p-6 md:p-16 rounded-3xl md:rounded-[4rem] shadow-2xl border border-slate-100 animate-in slide-in-from-bottom-8 duration-500 relative">
-          <button onClick={() => setStatus(GameStatus.START)} className="absolute top-6 left-6 p-3 bg-slate-50 rounded-full hover:bg-slate-100 text-slate-400 transition-colors z-20"><ArrowLeft size={20} /></button>
-          <div className="mt-12 overflow-y-auto max-h-[70vh] pr-2 custom-scrollbar">
-            <header className="text-center mb-10">
-              <h2 className="text-3xl md:text-5xl font-black mb-4 logo-font text-slate-900">Wisdom Hub</h2>
-              <p className="text-slate-500 text-lg md:text-xl font-medium">Get ready for the Nigerian market.</p>
-            </header>
-            <div className="space-y-6">
-              {(status === GameStatus.HOW_TO_PLAY ? HOW_TO_PLAY_STEPS : 
-                 status === GameStatus.TUTORIAL ? TUTORIAL_STEPS : 
-                 status === GameStatus.LESSONS ? FINANCIAL_LESSONS : 
-                 FINANCIAL_RUDIMENTS).map((step: any, i: number) => (
-                <div key={i} className="p-6 rounded-2xl bg-slate-50 border border-slate-100 flex items-center gap-6 group hover:bg-white hover:shadow-xl transition-all">
-                  <div className="p-4 bg-white rounded-xl shadow-sm text-indigo-600 flex-shrink-0">
-                    {React.isValidElement(step.icon) ? step.icon : React.cloneElement(step.icon as React.ReactElement, { size: 24 })}
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-black mb-1">{step.title}</h3>
-                    <p className="text-sm font-medium text-slate-500 leading-relaxed">{step.desc || step.lesson}</p>
-                  </div>
-                </div>
-              ))}
+      {status === GameStatus.HOW_TO_PLAY && (
+        <div className="max-w-5xl mx-auto space-y-16 py-10 animate-in slide-in-from-bottom-12 pb-32">
+          <header className="text-center space-y-6">
+            <h2 className="text-6xl md:text-7xl font-black logo-font text-slate-900 tracking-tighter uppercase">The Hustle Handbook</h2>
+            <div className="flex justify-center gap-4">
+              <span className="px-6 py-2 bg-emerald-100 text-emerald-700 rounded-full font-black text-[10px] uppercase tracking-widest border border-emerald-200">Survival Guide</span>
+              <span className="px-6 py-2 bg-amber-100 text-amber-700 rounded-full font-black text-[10px] uppercase tracking-widest border border-amber-200">Finance Hacks</span>
             </div>
-            <button onClick={() => {
-              if (status === GameStatus.HOW_TO_PLAY) setStatus(GameStatus.TUTORIAL);
-              else if (status === GameStatus.TUTORIAL) setStatus(GameStatus.LESSONS);
-              else if (status === GameStatus.LESSONS) setStatus(GameStatus.RUDIMENTS);
-              else setStatus(GameStatus.SETUP);
-            }} className="w-full mt-10 py-6 bg-slate-900 text-white rounded-[2rem] font-black text-xl shadow-xl transition-all">Next</button>
+          </header>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <section className="space-y-8">
+              <h3 className="text-3xl font-black text-slate-900 flex items-center gap-4 border-l-8 border-emerald-500 pl-6">Street Survival</h3>
+              <div className="space-y-4">
+                {[
+                  { icon: ShieldHalf, title: "Avoid 'Sapa' Mode", text: "If your balance hits zero, game over. Always keep 10% cash 'under your pillow' (Naira Box)." },
+                  { icon: Coins, title: "The 72-Hour Rule", text: "Before buying that fancy item, wait 3 days. If you still want it AND can afford it twice, buy it." },
+                  { icon: Scale, title: "Haggle Everything", text: "In the Nigerian market, the first price is never the real price. Use the 'Haggle' button to save." },
+                  { icon: BrainCircuit, title: "Black Tax Budget", text: "Family will always ask. Set a 'Family' budget at the start of the month. Once it's gone, it's gone." }
+                ].map((item, i) => (
+                  <div key={i} className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 flex gap-5 hover:shadow-md transition-shadow">
+                    <div className="p-4 bg-emerald-50 text-emerald-600 rounded-2xl h-fit"><item.icon size={24}/></div>
+                    <div>
+                      <h4 className="font-black text-lg text-slate-900">{item.title}</h4>
+                      <p className="text-slate-500 text-sm font-medium leading-relaxed">{item.text}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="space-y-8">
+              <h3 className="text-3xl font-black text-slate-900 flex items-center gap-4 border-l-8 border-amber-500 pl-6">Naija Finance Hacks</h3>
+              <div className="space-y-4">
+                {[
+                  { icon: Lightbulb, title: "Compound Interest", text: "Mutual funds beat savings accounts every time. Stanbic Fund is your best friend for steady, low-risk growth." },
+                  { icon: ShieldCheck, title: "Blue-Chip Stocks", text: "Companies like MTN and Zenith pay dividends. They give you money just for owning a part of the company." },
+                  { icon: Smartphone, title: "The Data Hustle", text: "Data is expensive. Use Wi-Fi whenever you can. Buying data in bulk saves you 30% compared to daily plans." },
+                  { icon: Zap, title: "Bulk Market Runs", text: "Never buy groceries daily. Bulk buying at local markets saves thousands in food costs." }
+                ].map((item, i) => (
+                  <div key={i} className="bg-amber-50/50 p-6 rounded-[2rem] shadow-sm border border-amber-100 flex gap-5 hover:bg-amber-50 transition-colors">
+                    <div className="p-4 bg-amber-100 text-amber-600 rounded-2xl h-fit"><item.icon size={24}/></div>
+                    <div>
+                      <h4 className="font-black text-lg text-slate-900">{item.title}</h4>
+                      <p className="text-slate-500 text-sm font-medium leading-relaxed">{item.text}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
           </div>
+
+          <button onClick={() => setStatus(GameStatus.SETUP)} className="w-full py-10 bg-slate-900 text-white rounded-[3rem] font-black text-3xl shadow-2xl hover:bg-emerald-600 transition-all flex items-center justify-center gap-6 group">
+            Ready to Hustle? <ArrowRight size={32} className="group-hover:translate-x-4 transition-transform"/>
+          </button>
         </div>
       )}
 
       {status === GameStatus.SETUP && (
-        <div className="bg-white p-6 md:p-12 rounded-[2rem] md:rounded-[4rem] shadow-2xl space-y-8 animate-in slide-in-from-bottom-8 border border-slate-100 max-w-3xl mx-auto relative overflow-hidden">
-          <button onClick={() => setStatus(GameStatus.RUDIMENTS)} className="absolute top-6 left-6 p-3 bg-slate-50 rounded-full text-slate-400 z-10"><ArrowLeft size={20} /></button>
-          <header className="text-center pt-8">
-            <h2 className="text-3xl md:text-5xl font-black logo-font text-slate-900">Profile Creator</h2>
-            <p className="text-slate-500 font-medium">Design your Nigerian journey.</p>
-          </header>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 overflow-y-auto max-h-[60vh] md:max-h-none pr-2">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase text-slate-400 ml-4 tracking-widest">Name</label>
-              <input value={setup.name} onChange={e => setSetup({...setup, name: e.target.value})} className="w-full bg-slate-50 p-5 rounded-2xl font-bold border-2 border-transparent focus:border-emerald-500 outline-none transition-all text-lg" placeholder="e.g. Chinedu" />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase text-slate-400 ml-4 tracking-widest">Career</label>
-              <select value={setup.job} onChange={e => setSetup({...setup, job: e.target.value, salary: JOB_DEFAULTS[e.target.value]})} className="w-full bg-slate-50 p-5 rounded-2xl font-bold border-2 border-transparent focus:border-emerald-500 outline-none text-lg">
-                {JOBS.map(j => <option key={j} value={j}>{j}</option>)}
-              </select>
-            </div>
-            {setup.job !== "Market Trader" && (
-              <div className="space-y-2 animate-in slide-in-from-top-2">
-                <label className="text-[10px] font-black uppercase text-slate-400 ml-4 tracking-widest">Monthly Salary (₦)</label>
-                <input type="number" value={setup.salary} onChange={e => setSetup({...setup, salary: parseInt(e.target.value) || 0})} className="w-full bg-slate-50 p-5 rounded-2xl font-black border-2 border-transparent focus:border-emerald-500 outline-none text-lg" />
+        <div className="bg-white p-8 md:p-12 rounded-[4rem] shadow-2xl max-w-4xl mx-auto space-y-12 border border-slate-100 animate-in slide-in-from-bottom-12">
+           <header className="text-center space-y-2">
+             <h2 className="text-5xl font-black logo-font text-slate-900 tracking-tighter uppercase">Identity Setup</h2>
+             <p className="text-slate-400 font-bold uppercase text-xs tracking-widest">Craft your digital hustler profile</p>
+           </header>
+
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-slate-400 ml-4 flex items-center gap-2"><User size={12}/> Your Name</label>
+                <input 
+                  value={setup.name} 
+                  onChange={e => setSetup({...setup, name: e.target.value})} 
+                  className="w-full bg-slate-50 p-6 rounded-[2rem] font-bold outline-none border-2 border-transparent focus:border-emerald-500 transition-all shadow-inner" 
+                  placeholder="Street Name or Real Name"
+                />
               </div>
-            )}
-            {setup.job === "Market Trader" && (
-              <div className="space-y-2 p-5 bg-indigo-50 rounded-[2rem] border border-indigo-100 flex items-center gap-4">
-                 <Store className="text-indigo-600 flex-shrink-0" />
-                 <p className="text-xs font-bold text-indigo-900 leading-tight">Traders don't have salary. You make sales weekly based on your inventory!</p>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-slate-400 ml-4 flex items-center gap-2"><Briefcase size={12}/> The Hustle</label>
+                <select 
+                  value={setup.job} 
+                  onChange={e => setSetup({...setup, job: e.target.value})} 
+                  className="w-full bg-slate-50 p-6 rounded-[2rem] font-bold outline-none border-2 border-transparent focus:border-emerald-500 appearance-none shadow-inner"
+                >
+                  {JOBS.map(j => <option key={j} value={j}>{j}</option>)}
+                </select>
               </div>
-            )}
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase text-slate-400 ml-4 tracking-widest">City</label>
-              <select value={setup.city} onChange={e => setSetup({...setup, city: e.target.value})} className="w-full bg-slate-50 p-5 rounded-2xl font-bold border-2 border-transparent focus:border-emerald-500 outline-none text-lg">
-                {NIGERIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase text-slate-400 ml-4 tracking-widest">Marital Status</label>
-              <select value={setup.maritalStatus} onChange={e => setSetup({...setup, maritalStatus: e.target.value as any})} className="w-full bg-slate-50 p-5 rounded-2xl font-bold border-2 border-transparent focus:border-emerald-500 outline-none text-lg">
-                <option value="single">Single Life</option>
-                <option value="married">Married</option>
-              </select>
-            </div>
-          </div>
-          <button onClick={handleStart} className="w-full py-6 bg-emerald-600 text-white rounded-[1.5rem] font-black text-xl md:text-2xl shadow-xl transition-all">Start My Hustle</button>
+
+              {setup.job === "Custom Hustle..." && (
+                <div className="space-y-2 col-span-1 md:col-span-2 animate-in slide-in-from-top-4">
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-4 flex items-center gap-2"><Target size={12}/> Specify Your Custom Hustle</label>
+                  <textarea 
+                    value={setup.customJob} 
+                    onChange={e => setSetup({...setup, customJob: e.target.value})} 
+                    className="w-full bg-slate-50 p-6 rounded-[2rem] font-bold outline-none border-2 border-transparent focus:border-emerald-500 transition-all shadow-inner h-24" 
+                    placeholder="e.g. Suya Man, Instagram Influencer, Fish Farmer..."
+                  />
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-slate-400 ml-4 flex items-center gap-2"><MapPin size={12}/> Location (State)</label>
+                <select 
+                  value={setup.city} 
+                  onChange={e => setSetup({...setup, city: e.target.value})} 
+                  className="w-full bg-slate-50 p-6 rounded-[2rem] font-bold outline-none border-2 border-transparent focus:border-emerald-500 appearance-none shadow-inner"
+                >
+                  {NIGERIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-slate-400 ml-4 flex items-center gap-2"><Banknote size={12}/> Monthly Take Home (₦)</label>
+                <input 
+                  type="number" 
+                  value={setup.salary} 
+                  onChange={e => setSetup({...setup, salary: parseInt(e.target.value)||0})} 
+                  className="w-full bg-slate-50 p-6 rounded-[2rem] font-bold outline-none border-2 border-transparent focus:border-emerald-500 shadow-inner"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-slate-400 ml-4 flex items-center gap-2"><User size={12}/> Gender</label>
+                <div className="flex gap-2">
+                  {['male', 'female', 'other'].map(g => (
+                    <button 
+                      key={g} 
+                      onClick={() => setSetup({...setup, gender: g as any})} 
+                      className={`flex-1 py-4 rounded-2xl font-black capitalize transition-all border-2 ${setup.gender === g ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-slate-50 text-slate-400 border-transparent hover:border-slate-200'}`}
+                    >
+                      {g}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-slate-400 ml-4 flex items-center gap-2"><Heart size={12}/> Marital Status</label>
+                <div className="flex gap-2">
+                  {['single', 'married'].map(m => (
+                    <button 
+                      key={m} 
+                      onClick={() => setSetup({...setup, maritalStatus: m as any, numberOfKids: m === 'single' ? 0 : setup.numberOfKids})} 
+                      className={`flex-1 py-4 rounded-2xl font-black capitalize transition-all border-2 ${setup.maritalStatus === m ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-slate-50 text-slate-400 border-transparent hover:border-slate-200'}`}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {setup.maritalStatus === 'married' && (
+                <div className="space-y-2 animate-in slide-in-from-top-4 col-span-1 md:col-span-2">
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-4 flex items-center gap-2"><Baby size={12}/> Number of Kids</label>
+                  <div className="flex items-center gap-4">
+                    <input 
+                      type="range" 
+                      min="0" 
+                      max="10" 
+                      value={setup.numberOfKids} 
+                      onChange={e => setSetup({...setup, numberOfKids: parseInt(e.target.value)||0})} 
+                      className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
+                    />
+                    <span className="w-12 h-12 flex items-center justify-center bg-slate-900 text-white rounded-xl font-black">{setup.numberOfKids}</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-slate-400 ml-4 flex items-center gap-2"><Languages size={12}/> Narrator Vibe</label>
+                <div className="flex gap-2">
+                  {['English', 'Pidgin'].map(l => (
+                    <button 
+                      key={l} 
+                      onClick={() => setSetup({...setup, narrationLanguage: l as any})} 
+                      className={`flex-1 py-4 rounded-2xl font-black capitalize transition-all border-2 ${setup.narrationLanguage === l ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-slate-50 text-slate-400 border-transparent hover:border-slate-200'}`}
+                    >
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+           </div>
+
+           <div className="bg-indigo-50 p-6 rounded-[2rem] border border-indigo-100 flex gap-4">
+             <div className="p-3 bg-indigo-100 text-indigo-600 rounded-xl h-fit"><Info size={20}/></div>
+             <p className="text-xs font-medium text-indigo-900 leading-relaxed italic">
+               Heads up! Married hustlers with kids face higher costs but might find more community support and specific bonuses.
+             </p>
+           </div>
+
+           <button onClick={handleStart} className="w-full py-9 bg-emerald-600 text-white rounded-[2.5rem] font-black text-3xl shadow-2xl hover:bg-emerald-700 transition-all flex items-center justify-center gap-4">
+             Confirm Profile <ArrowRight size={32}/>
+           </button>
         </div>
       )}
 
       {status === GameStatus.LOADING && (
-        <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-10">
-          <div className="w-24 h-24 border-[10px] border-emerald-50 border-t-emerald-600 rounded-full animate-spin relative">
-            <Loader2 className="w-10 h-10 text-emerald-600 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-          </div>
-          <p className="font-black text-slate-900 text-xl uppercase tracking-widest">Consulting Oga Mentor...</p>
+        <div className="flex flex-col items-center justify-center min-h-[70vh] space-y-10">
+          <Loader2 className="w-24 h-24 text-emerald-600 animate-spin"/>
+          <p className="font-black text-slate-900 text-2xl tracking-[0.5em] uppercase text-center">Spawning in Nigeria...</p>
         </div>
       )}
 
       {status === GameStatus.PLAYING && stats && (
-        <div className="space-y-6 md:space-y-8 animate-in fade-in duration-1000">
-          <header className="flex justify-between items-center bg-white/90 backdrop-blur-2xl p-4 md:p-6 rounded-2xl md:rounded-[2.5rem] shadow-xl border border-slate-100 sticky top-3 md:top-6 z-50">
-            <h1 className="text-xl md:text-3xl font-black text-gradient logo-font">NairaWise</h1>
-            <nav className="flex gap-2 md:gap-4">
+        <div className="space-y-8 animate-in fade-in duration-1000">
+          <header className="flex justify-center sticky top-6 z-[60]">
+            <nav className="flex items-center gap-2 bg-white/80 backdrop-blur-3xl p-2 rounded-full border border-white shadow-2xl">
               {[
-                { id: 'scenario', icon: Gamepad2, label: 'Game' },
-                { id: 'invest', icon: TrendingUp, label: 'Wealth' },
-                { id: 'history', icon: History, label: 'Bank' }
-              ].map(t => (
-                <button key={t.id} onClick={() => setActiveTab(t.id as any)} className={`flex items-center gap-2 md:gap-3 px-3 md:px-6 py-2 md:py-4 rounded-xl md:rounded-2xl transition-all font-black text-[10px] md:text-sm ${activeTab === t.id ? 'bg-slate-900 text-white shadow-2xl scale-105' : 'text-slate-400 hover:text-slate-900'}`}>
-                  <t.icon size={18} /> <span className="hidden xs:inline">{t.label}</span>
+                { id: 'scenario', label: 'Hustle', icon: Calendar },
+                { id: 'invest', label: 'Wealth', icon: TrendingUp },
+                { id: 'analytics', label: 'Pulse', icon: Target },
+                { id: 'history', label: 'Ledger', icon: ScrollText }
+              ].map(tab => (
+                <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`px-6 sm:px-8 py-4 rounded-full transition-all font-black text-[10px] uppercase tracking-widest flex items-center gap-2 ${activeTab === tab.id ? 'bg-slate-900 text-white shadow-xl' : 'text-slate-400 hover:text-slate-900'}`}>
+                  <tab.icon size={14}/><span>{tab.label}</span>
                 </button>
               ))}
             </nav>
           </header>
-
-          <Dashboard stats={stats} netAssets={getNetAssets()} />
-
+          
+          <Dashboard stats={stats} netAssets={currentNetAssets} stocks={stocks} portfolio={portfolio} />
+          
           {activeTab === 'scenario' && (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-10 pb-10">
-              <div className="lg:col-span-8 space-y-6 md:space-y-10">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pb-10">
+              <div className="lg:col-span-8 space-y-8">
                 {lastConsequences ? (
-                  <div className="bg-white p-6 md:p-12 rounded-3xl md:rounded-[4rem] shadow-2xl text-center space-y-6 md:space-y-10 animate-in zoom-in duration-500 border border-slate-100 relative overflow-hidden">
-                    <h3 className="text-2xl md:text-4xl font-black logo-font">Week {stats.currentWeek - 1} Review</h3>
+                  <div className="bg-white p-12 rounded-[4rem] shadow-2xl text-center space-y-12 border border-slate-50 overflow-hidden relative">
+                    <h3 className="text-5xl font-black logo-font text-slate-900 tracking-tighter uppercase">Last Week's Result</h3>
                     <div className="space-y-4">
                       {lastConsequences.items.map((it, i) => (
-                        <div key={i} className="p-5 bg-slate-50 rounded-2xl text-left border border-slate-100 flex gap-4">
-                           <div className="mt-1 flex-shrink-0"><Info size={20} className="text-indigo-500" /></div>
-                           <p className="text-base font-bold text-slate-700 leading-relaxed">"{it.text}"</p>
-                        </div>
+                        <div key={i} className={`p-8 rounded-[3rem] text-left border italic font-bold ${it.decision.includes('Salary') ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : (it.decision.includes('Neglected') ? 'bg-rose-50 border-rose-100 text-rose-700' : 'bg-slate-50 border-slate-200 text-slate-700')}`}>"{it.text}"</div>
                       ))}
                     </div>
-                    <div className="bg-emerald-50 p-6 rounded-2xl border-2 border-emerald-100 text-left">
-                       <h4 className="text-[8px] font-black text-emerald-700 uppercase tracking-[0.3em] mb-2">Mentor's Wisdom</h4>
-                       <p className="text-lg md:text-2xl font-black text-emerald-900">{lastConsequences.lesson}</p>
+                    <div className="bg-emerald-50 p-12 rounded-[3.5rem] text-left border-2 border-emerald-100">
+                       <h4 className="text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-4">Street Wisdom</h4>
+                       <p className="text-3xl font-black text-emerald-950">{lastConsequences.lesson}</p>
                     </div>
-                    <button onClick={nextTurn} className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-xl shadow-xl transition-all">Next Turn</button>
+                    <button onClick={() => { setLastConsequences(null); if(nextScenario){ setCurrentScenario(nextScenario); setNextScenario(null); } }} className="w-full py-8 bg-slate-900 text-white rounded-[2.5rem] font-black text-2xl shadow-xl hover:bg-emerald-600 transition-all">Next Week</button>
                   </div>
                 ) : (
-                  <div className="space-y-6 md:space-y-10">
-                    <div className="bg-white rounded-3xl md:rounded-[4rem] overflow-hidden shadow-2xl border border-slate-100 relative group">
-                      <div className="absolute top-4 right-4 bg-white/95 backdrop-blur px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest text-slate-900 z-10 shadow-lg">Week {stats.currentWeek}</div>
-                      <div className="h-48 md:h-80 w-full relative"><img src={`https://picsum.photos/seed/naija-${currentScenario?.imageTheme || 'market'}/1200/600`} className="w-full h-full object-cover" /></div>
-                      <div className="p-6 md:p-12 relative">
-                        <h2 className="text-2xl md:text-5xl font-black mb-3 logo-font text-slate-900">{currentScenario?.title}</h2>
-                        <p className="text-slate-500 font-medium text-lg md:text-2xl leading-relaxed">{currentScenario?.description}</p>
+                  <div className="space-y-8">
+                    <div className="bg-white rounded-[4rem] overflow-hidden shadow-2xl border border-slate-100">
+                      <div className="h-[400px] w-full relative">
+                        <img src={`https://picsum.photos/seed/naira-${currentScenario?.imageTheme}/1200/800`} className="w-full h-full object-cover"/>
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex items-end p-12">
+                          <h2 className="text-5xl font-black logo-font text-white tracking-tighter uppercase">{currentScenario?.title}</h2>
+                        </div>
                       </div>
+                      <div className="p-12 text-slate-600 font-medium text-2xl leading-relaxed">{currentScenario?.description}</div>
                     </div>
-                    <div className="grid grid-cols-1 gap-3 md:gap-5">
+                    <div className="grid grid-cols-1 gap-4">
                       {currentScenario?.choices.map((c, i) => {
-                        const isSel = selectedIndices.includes(i);
+                        const isSelected = selectedIndices.includes(i);
+                        const isNegotiated = negotiatedIndices.has(i);
+                        const displayCost = isNegotiated ? Math.floor(Math.abs(c.impact.balance) * 0.85) : Math.abs(c.impact.balance);
                         return (
-                          <button key={i} onClick={() => toggleChoice(i)} className={`w-full text-left p-6 md:p-10 rounded-2xl md:rounded-[3rem] border-2 md:border-4 transition-all duration-300 ${isSel ? 'bg-indigo-600 border-indigo-400 text-white shadow-2xl scale-[1.02]' : 'bg-white border-transparent shadow-md hover:border-indigo-100'}`}>
-                            <div className="flex flex-col md:flex-row justify-between md:items-center gap-3">
-                              <p className="font-black text-base md:text-2xl leading-tight pr-0 md:pr-10">{c.text}</p>
-                              <div className="flex flex-row md:flex-col items-center md:items-end gap-3 md:gap-1 text-[10px] md:text-[12px] font-black uppercase whitespace-nowrap">
-                                <span className={`flex items-center gap-1.5 ${isSel ? 'text-white' : 'text-slate-500'}`}><Banknote size={16} /> {c.impact.balance >= 0 ? '+' : ''}₦{c.impact.balance.toLocaleString()}</span>
+                          <div key={i} className={`p-10 rounded-[3.5rem] border-2 transition-all relative ${isSelected ? 'bg-slate-900 border-slate-900 text-white shadow-2xl scale-[1.01]' : 'bg-white border-transparent shadow-xl hover:border-slate-200'}`}>
+                            <div className="flex justify-between items-start cursor-pointer" onClick={() => setSelectedIndices(prev => prev.includes(i) ? prev.filter(x => x !== i) : (prev.length < 2 ? [...prev, i] : prev))}>
+                              <div className="flex-1">
+                                 <div className="flex items-center gap-2 mb-2">
+                                   <span className="text-[10px] font-black uppercase tracking-widest opacity-50">{c.category || 'Choice'}</span>
+                                   {isSelected && <CheckCircle2 size={14} className="text-emerald-400" />}
+                                 </div>
+                                 <p className="font-black text-2xl leading-tight">{c.text}</p>
+                              </div>
+                              <div className="text-right ml-4">
+                                <p className={`text-2xl font-black ${isNegotiated ? 'text-emerald-400' : ''}`}>
+                                  {displayCost === 0 ? '₦0' : `₦${displayCost.toLocaleString()}`}
+                                </p>
                               </div>
                             </div>
-                          </button>
+                            {c.category === 'Repairs' && !isSelected && (
+                              <button onClick={(e) => { e.stopPropagation(); toggleNegotiation(i); }} className={`mt-4 px-6 py-2 rounded-full font-black text-[10px] uppercase tracking-widest border flex items-center gap-2 transition-all ${isNegotiated ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : 'bg-white text-slate-900 border-slate-200 hover:bg-slate-50'}`}>
+                                <Gavel size={14}/> {isNegotiated ? 'Negotiated' : 'Haggle'}
+                              </button>
+                            )}
+                          </div>
                         );
                       })}
                     </div>
                     {selectedIndices.length > 0 && (
-                      <button onClick={confirmChoice} className="w-full py-6 md:py-10 bg-slate-900 text-white rounded-2xl md:rounded-[3rem] font-black text-xl md:text-3xl flex items-center justify-center gap-4 md:gap-6 group shadow-2xl animate-in slide-in-from-bottom-8">Confirm Decision <ArrowRight size={24} className="group-hover:translate-x-2 transition-transform" /></button>
+                      <button onClick={confirmChoice} className="w-full py-12 bg-emerald-600 text-white rounded-[4rem] font-black text-4xl shadow-2xl hover:bg-emerald-700 transition-all active:scale-95">Confirm Week's Move</button>
                     )}
                   </div>
                 )}
               </div>
-              <div className="lg:col-span-4 space-y-6 md:space-y-10">
-                {stats.job === "Market Trader" && (
-                  <div className="bg-white p-6 md:p-10 rounded-3xl shadow-xl border border-slate-100 relative overflow-hidden group">
-                    <h4 className="font-black text-sm md:text-lg mb-6 flex items-center gap-3 uppercase tracking-[0.2em] text-slate-900"><Store size={24} className="text-blue-500" /> Shop Restock</h4>
-                    <div className="space-y-4">
-                      <div className="relative">
-                        <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-slate-300">₦</span>
-                        <input type="number" value={restockInput} onChange={e => setRestockInput(e.target.value)} placeholder="Amount to spend" className="w-full bg-slate-50 pl-12 p-5 rounded-2xl font-black text-lg border-2 border-transparent focus:border-blue-400 outline-none transition-all" />
-                      </div>
-                      <button onClick={handleRestock} className="w-full py-4 bg-blue-600 text-white rounded-xl font-black text-sm shadow-xl hover:bg-blue-700 flex items-center justify-center gap-2 uppercase tracking-widest"><PackagePlus size={18} /> Buy Goods</button>
-                      <p className="text-[10px] font-bold text-slate-400 text-center uppercase">Currently in shop: ₦{stats.inventory.toLocaleString()}</p>
-                    </div>
-                  </div>
-                )}
+              <div className="lg:col-span-4 space-y-8">
                 <SocialFeed posts={currentScenario?.socialFeed || []} />
-                <div className="bg-white p-6 md:p-10 rounded-3xl shadow-xl border border-slate-100 relative overflow-hidden group">
-                  <h4 className="font-black text-sm md:text-lg mb-6 flex items-center gap-3 uppercase tracking-[0.2em] text-slate-900"><PiggyBank size={24} className="text-amber-500" /> Naira Box</h4>
-                  <div className="space-y-4">
-                    <div className="relative">
-                      <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-slate-300">₦</span>
-                      <input type="number" value={savingsInput} onChange={e => setSavingsInput(e.target.value)} placeholder="0.00" className="w-full bg-slate-50 pl-12 p-5 rounded-2xl font-black text-lg border-2 border-transparent focus:border-amber-400 outline-none transition-all" />
-                    </div>
-                    <div className="flex gap-3">
-                      <button onClick={() => {
-                        const amt = parseInt(savingsInput);
-                        if (amt > 0 && stats.balance >= amt) {
-                          const newBalance = stats.balance - amt;
-                          setStats({...stats, balance: newBalance, savings: stats.savings + amt});
-                          setHistory([...history, { week: stats.currentWeek, title: "Savings Move", decision: "Wallet → Box", consequence: `Stored ₦${amt.toLocaleString()}`, amount: -amt, balanceAfter: newBalance }]);
-                          setSavingsInput('');
-                        }
-                      }} className="flex-1 py-4 bg-emerald-600 text-white rounded-xl font-black text-[10px] shadow-xl uppercase tracking-widest">SAVE</button>
-                      <button onClick={() => {
-                        const amt = parseInt(savingsInput);
-                        if (amt > 0 && stats.savings >= amt) {
-                          const newBalance = stats.balance + amt;
-                          setStats({...stats, balance: newBalance, savings: stats.savings - amt});
-                          setHistory([...history, { week: stats.currentWeek, title: "Withdrawal Move", decision: "Box → Wallet", consequence: `Took ₦${amt.toLocaleString()}`, amount: amt, balanceAfter: newBalance }]);
-                          setSavingsInput('');
-                        }
-                      }} className="flex-1 py-4 bg-amber-500 text-white rounded-xl font-black text-[10px] shadow-xl uppercase tracking-widest">TAKE</button>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           )}
 
           {activeTab === 'invest' && (
-            <StockMarket stocks={stocks} portfolio={portfolio} news={[]} onBuy={(id) => {
-              const s = stocks.find(x => x.id === id)!;
-              if (stats.balance >= s.price) {
-                const newBalance = stats.balance - s.price;
-                setStats({...stats, balance: newBalance});
-                setPortfolio(prev => {
-                  const has = prev.find(p => p.stockId === id);
-                  if (has) return prev.map(p => p.stockId === id ? {...p, shares: p.shares + 1} : p);
-                  return [...prev, { stockId: id, shares: 1, averagePrice: s.price }];
-                });
-                setHistory([...history, { week: stats.currentWeek, title: `Buy: ${s.name}`, decision: `Bought 1 Unit`, consequence: "Asset added.", amount: -s.price, balanceAfter: newBalance }]);
-              }
-            }} onSell={(id) => {
-              const s = stocks.find(x => x.id === id)!;
-              const has = portfolio.find(p => p.stockId === id);
-              if (has && has.shares > 0) {
-                const newBalance = stats.balance + s.price;
-                setStats({...stats, balance: newBalance});
-                setPortfolio(prev => prev.map(p => p.stockId === id ? {...p, shares: p.shares - 1} : p).filter(p => p.shares > 0));
-                setHistory([...history, { week: stats.currentWeek, title: `Sell: ${s.name}`, decision: `Sold 1 Unit`, consequence: "Capital liquidated.", amount: s.price, balanceAfter: newBalance }]);
-              }
-            }} balance={stats.balance} onSetTrigger={(id, type, val) => {
-               setPortfolio(prev => prev.map(p => p.stockId === id ? {...p, [type]: val} : p));
-            }} />
+            <StockMarket 
+              stocks={stocks} 
+              portfolio={portfolio} 
+              onBuy={(id) => {
+                const stock = stocks.find(s => s.id === id);
+                if (stock && stats && stats.balance >= stock.price) {
+                  setStats({...stats, balance: stats.balance - stock.price});
+                  setPortfolio(prev => {
+                    const has = prev.find(p => p.stockId === id);
+                    if (has) return prev.map(p => p.stockId === id ? {...p, shares: p.shares + 1} : p);
+                    return [...prev, { stockId: id, shares: 1, averagePrice: stock.price }];
+                  });
+                }
+              }} 
+              onSell={(id) => {
+                const stock = stocks.find(s => s.id === id);
+                const holding = portfolio.find(p => p.stockId === id);
+                if (stock && holding && holding.shares > 0 && stats) {
+                  setStats({...stats, balance: stats.balance + stock.price});
+                  setPortfolio(prev => prev.map(p => p.stockId === id ? {...p, shares: p.shares - 1} : p));
+                }
+              }} 
+              balance={stats.balance} 
+              onSetTrigger={() => {}} 
+            />
+          )}
+
+          {activeTab === 'analytics' && (
+            <div className="bg-white p-16 rounded-[4rem] shadow-2xl max-w-5xl mx-auto space-y-12">
+               <h3 className="text-5xl font-black text-center text-slate-900 tracking-tighter uppercase">Spending Flow</h3>
+               <div className="h-[400px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={stats ? Object.entries(stats.spendingByCategory).map(([name, value]) => ({ name, value })) : []}>
+                      <XAxis dataKey="name" tick={{fontSize: 10, fontWeight: 900}} />
+                      <ReYAxis />
+                      <Bar dataKey="value" radius={[10, 10, 0, 0]}>
+                         {Object.entries(stats.spendingByCategory).map((entry, index) => (
+                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                         ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+               </div>
+            </div>
           )}
 
           {activeTab === 'history' && (
-            <div className="bg-white p-6 md:p-12 rounded-3xl shadow-2xl border border-slate-100 animate-in slide-in-from-right-8 max-w-4xl mx-auto">
-               <h3 className="text-2xl md:text-4xl font-black logo-font mb-8 flex items-center gap-3">Bank Statement</h3>
-               <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="bg-white p-12 rounded-[4rem] shadow-2xl border border-slate-50 max-w-5xl mx-auto min-h-[60vh] flex flex-col">
+               <div className="flex justify-between items-center mb-10">
+                 <h3 className="text-4xl font-black logo-font flex items-center gap-5 text-slate-900 tracking-tighter"><ScrollText size={32} /> Street Ledger</h3>
+               </div>
+               <div className="space-y-4 overflow-y-auto max-h-[60vh] pr-4 custom-scrollbar">
                  {history.slice().reverse().map((h, i) => (
-                   <div key={i} className="flex flex-col md:flex-row justify-between md:items-center p-6 bg-slate-50 rounded-2xl border border-slate-100 group gap-4">
-                     <div className="flex gap-4 items-center">
-                       <div className="w-12 h-12 rounded-xl bg-white border-2 border-slate-100 flex flex-col items-center justify-center font-black">
-                          <span className="text-[8px] text-slate-400">WK</span>
-                          <span className="text-lg text-slate-900">{h.week}</span>
+                   <div key={i} className="flex justify-between items-start p-8 bg-slate-50 rounded-[2.5rem] border border-slate-100 hover:border-slate-200 transition-all group">
+                     <div className="space-y-2 flex-1">
+                       <div className="flex items-center gap-3">
+                         <span className="text-[10px] font-black text-white bg-slate-400 px-3 py-1 rounded-full uppercase">Week {h.week}</span>
+                         <p className="font-black text-xl text-slate-900 group-hover:text-emerald-600 transition-colors">{h.title}</p>
                        </div>
-                       <div className="min-w-0">
-                         <p className="font-black text-lg text-slate-900 leading-tight mb-0.5">{h.title}</p>
-                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{h.decision}</p>
-                       </div>
+                       <p className="text-sm text-slate-500 italic leading-relaxed">"{h.consequence}"</p>
                      </div>
-                     <div className="text-left md:text-right border-t md:border-none pt-3 md:pt-0">
-                       <p className={`font-black text-xl md:text-3xl ${h.amount >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{h.amount >= 0 ? '+' : ''}₦{h.amount.toLocaleString()}</p>
-                       <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Bal: ₦{h.balanceAfter.toLocaleString()}</p>
+                     <div className="text-right ml-4">
+                       <p className={`text-2xl font-black ${h.amount >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                         {h.amount >= 0 ? '+' : ''}₦{h.amount.toLocaleString()}
+                       </p>
+                       <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mt-1">Bal: ₦{h.balanceAfter.toLocaleString()}</p>
                      </div>
                    </div>
                  ))}
@@ -600,14 +644,38 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {(status === GameStatus.GAMEOVER || status === GameStatus.VICTORY) && (
-        <div className="flex flex-col items-center justify-center min-h-[85vh] text-center space-y-10 animate-in zoom-in duration-700 px-4">
-          <div className={`p-8 md:p-16 rounded-[3rem] ${status === GameStatus.VICTORY ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100'} w-full max-w-4xl shadow-2xl border-4`}>
-             <h2 className="text-4xl md:text-7xl font-black mb-6 logo-font text-slate-900">{status === GameStatus.VICTORY ? 'Oga Boss Status!' : 'Sapa Wins!'}</h2>
-             <div className="bg-white p-6 rounded-2xl mb-8 text-left border shadow-inner max-h-[40vh] overflow-y-auto">
-                <p className="text-lg md:text-2xl font-medium text-slate-700 italic">"{report}"</p>
-             </div>
-             <button onClick={() => window.location.reload()} className="w-full py-6 bg-slate-900 text-white rounded-2xl font-black text-xl shadow-2xl transition-all">Start New Life</button>
+      {(status === GameStatus.GAMEOVER || status === GameStatus.VICTORY) && report && (
+        <div className="flex flex-col items-center justify-center min-h-screen py-20 animate-in zoom-in duration-500">
+          <div className="bg-white p-12 md:p-24 rounded-[5rem] shadow-2xl border-4 border-slate-50 space-y-16 max-w-4xl w-full mx-auto overflow-hidden relative">
+            <div className="text-center space-y-6">
+              <h2 className={`text-7xl font-black tracking-tighter uppercase ${status === GameStatus.VICTORY ? 'text-emerald-600' : 'text-rose-600'}`}>
+                {status === GameStatus.VICTORY ? 'Hustle King!' : 'Game Over'}
+              </h2>
+              <div className="flex items-center justify-center gap-4">
+                 <div className="w-20 h-20 bg-slate-900 text-white rounded-3xl flex items-center justify-center text-4xl font-black">
+                   {report.grade || 'C'}
+                 </div>
+                 <p className="text-2xl font-black text-slate-400 uppercase tracking-widest">Final Grade</p>
+              </div>
+            </div>
+            
+            <div className="p-8 bg-slate-50 rounded-[3rem] text-xl font-bold text-slate-800 italic border-2 border-slate-100">
+              {report.verdict}
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-widest text-center">Street Wisdom Points</h3>
+              {report.points?.map((p: string, i: number) => (
+                <div key={i} className="flex gap-4 p-6 bg-white border border-slate-100 rounded-[2rem] shadow-sm">
+                  <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl h-fit"><CheckCircle2 size={20}/></div>
+                  <p className="font-bold text-slate-700 leading-tight">{p}</p>
+                </div>
+              ))}
+            </div>
+
+            <button onClick={resetGame} className="w-full py-12 bg-slate-900 text-white rounded-[4rem] font-black text-3xl flex items-center justify-center gap-6 shadow-2xl transition-all hover:bg-emerald-600 active:scale-95">
+              <Trash2 size={32} /> Restart Life Cycle
+            </button>
           </div>
         </div>
       )}

@@ -1,42 +1,35 @@
 
 import React, { useState } from 'react';
-import { Stock, PortfolioItem, MarketNews } from './types';
+import { Stock, PortfolioItem } from './types';
 import { 
   TrendingUp, 
-  TrendingDown, 
   ArrowUpRight, 
   ArrowDownRight, 
-  Newspaper, 
   Settings2, 
   Target, 
   ShieldCheck, 
   PieChart, 
   BarChart3, 
-  Info,
   Building2,
-  Gem,
-  ExternalLink
+  Gem
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
   LineChart, 
   Line, 
-  YAxis, 
-  Tooltip,
-  CartesianGrid
+  YAxis
 } from 'recharts';
 
 interface StockMarketProps {
   stocks: Stock[];
   portfolio: PortfolioItem[];
-  news: MarketNews[];
   onBuy: (stockId: string) => void;
   onSell: (stockId: string) => void;
   balance: number;
   onSetTrigger: (stockId: string, type: 'stopLoss' | 'takeProfit', value: number | undefined) => void;
 }
 
-const StockMarket: React.FC<StockMarketProps> = ({ stocks, portfolio, news, onBuy, onSell, balance, onSetTrigger }) => {
+const StockMarket: React.FC<StockMarketProps> = ({ stocks, portfolio, onBuy, onSell, balance, onSetTrigger }) => {
   const [selectedStockId, setSelectedStockId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'stock' | 'mutual_fund'>('all');
 
@@ -44,7 +37,6 @@ const StockMarket: React.FC<StockMarketProps> = ({ stocks, portfolio, news, onBu
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 animate-in fade-in duration-500">
-      {/* Sidebar / Filters */}
       <div className="lg:col-span-3 space-y-4 md:space-y-6">
         <div className="bg-white p-5 md:p-6 rounded-2xl md:rounded-[2.5rem] border border-slate-100 shadow-sm">
           <h3 className="text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-widest mb-4 md:mb-6 flex items-center gap-2">
@@ -71,18 +63,8 @@ const StockMarket: React.FC<StockMarketProps> = ({ stocks, portfolio, news, onBu
             ))}
           </div>
         </div>
-
-        <div className="hidden lg:block bg-indigo-600 p-8 rounded-[2.5rem] text-white shadow-xl relative overflow-hidden group">
-           <TrendingUp className="absolute -bottom-4 -right-4 w-24 h-24 text-white/10 group-hover:scale-110 transition-transform" />
-           <p className="text-sm font-black uppercase tracking-wider mb-4">Investment Pro-Tip</p>
-           <p className="text-xs font-medium leading-relaxed opacity-90 relative z-10">
-             In Nigeria, blue-chip stocks pay dividends regularly. 
-             Mutual funds like Stanbic are your safe haven for rainy day cash!
-           </p>
-        </div>
       </div>
 
-      {/* Assets Grid */}
       <div className="lg:col-span-9 space-y-4 md:space-y-6">
         <div className="flex flex-col md:flex-row justify-between md:items-center gap-3 px-2">
           <h3 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
@@ -113,7 +95,6 @@ const StockMarket: React.FC<StockMarketProps> = ({ stocks, portfolio, news, onBu
                       }`}>
                         {asset.assetType === 'stock' ? 'Equity' : 'Fund'}
                       </span>
-                      <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest truncate">{asset.sector}</span>
                     </div>
                     <h4 className="text-xl md:text-2xl font-black text-slate-900 leading-tight truncate">{asset.name}</h4>
                   </div>
@@ -126,7 +107,6 @@ const StockMarket: React.FC<StockMarketProps> = ({ stocks, portfolio, news, onBu
                 <div className="flex justify-between items-end mb-4 md:mb-6">
                   <div>
                     <p className="text-3xl md:text-4xl font-black text-slate-900 tracking-tighter">₦{asset.price.toLocaleString()}</p>
-                    <p className="text-[8px] md:text-[10px] text-slate-400 font-bold uppercase mt-1">Value</p>
                   </div>
                   {holding && (
                     <div className="text-right">

@@ -2,7 +2,7 @@
 export interface PlayerStats {
   name: string;
   gender: 'male' | 'female' | 'other';
-  age: number;
+  ageBracket: string;
   salary: number;
   balance: number;
   savings: number;
@@ -14,45 +14,17 @@ export interface PlayerStats {
   challenge: string;
   maritalStatus: 'single' | 'married';
   numberOfKids: number;
-  inventory: number; // For traders: Value of goods in shop
-  businessDebt: number; // Money owed by customers
-}
-
-export interface Goal {
-  id: string;
-  title: string;
-  target: number;
-  category: 'savings' | 'investment' | 'lifestyle';
-  completed: boolean;
-}
-
-export interface Stock {
-  id: string;
-  name: string;
-  price: number;
-  history: number[];
-  sector: string;
-  assetType: 'stock' | 'mutual_fund' | 'inventory';
-  description?: string;
-}
-
-export interface PortfolioItem {
-  stockId: string;
-  shares: number;
-  averagePrice: number;
-  stopLoss?: number;
-  takeProfit?: number;
-}
-
-export interface MarketNews {
-  headline: string;
-  impact: 'positive' | 'negative' | 'neutral';
-  stockId?: string;
+  inventory: string[];
+  businessDebt: number;
+  narrationLanguage: 'English' | 'Pidgin';
+  lastPaidWeeks: Record<string, number>;
+  spendingByCategory: Record<string, number>;
 }
 
 export interface Choice {
   text: string;
   consequence: string;
+  category?: 'Essential' | 'NonEssential' | 'Investment' | 'Asset' | 'Repairs' | 'BlackTax' | 'Family' | 'Saving' | 'Transport';
   impact: {
     balance: number;
     savings: number;
@@ -60,6 +32,9 @@ export interface Choice {
     happiness: number;
   };
   investmentId?: string;
+  itemId?: string; 
+  isNegotiable?: boolean;
+  negotiableOutcome?: string;
 }
 
 export interface SocialPost {
@@ -80,7 +55,6 @@ export interface Scenario {
   lesson: string;
   choices: Choice[];
   socialFeed: SocialPost[];
-  marketEvent?: MarketNews;
 }
 
 export interface GameLog {
@@ -92,13 +66,27 @@ export interface GameLog {
   balanceAfter: number;
 }
 
+export interface Stock {
+  id: string;
+  name: string;
+  price: number;
+  history: number[];
+  sector: string;
+  assetType: 'stock' | 'mutual_fund';
+}
+
+export interface PortfolioItem {
+  stockId: string;
+  shares: number;
+  averagePrice: number;
+  stopLoss?: number;
+  takeProfit?: number;
+}
+
 export enum GameStatus {
   START = 'START',
   HOW_TO_PLAY = 'HOW_TO_PLAY',
-  TUTORIAL = 'TUTORIAL',
   LESSONS = 'LESSONS',
-  RUDIMENTS = 'RUDIMENTS',
-  CHALLENGES_INFO = 'CHALLENGES_INFO',
   SETUP = 'SETUP',
   PLAYING = 'PLAYING',
   GAMEOVER = 'GAMEOVER',
